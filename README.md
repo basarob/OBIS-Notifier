@@ -28,7 +28,7 @@ OBIS Notifier, ADÜ Öğrenci Bilgi Sistemi (OBİS) üzerinden not değişiklikl
 ### Yöntem 1: .exe Dosyası ile Kolay Kurulum
 
 1. Aşağıdaki **Telegram Bot Kurulumu** bölümünü tamamlayın.
-2. [Releases](https://github.com/basarob/OBISNotifier/releases) sekmesinden:
+2. [Releases](https://github.com/basarob/OBIS-Notifier/releases) sekmesinden:
    - `OBISNotifier.exe` dosyasını,
    - `ms-playwright/` klasörünü indirin.
 3. `config.py` dosyasını `Not Defteri` ile açın ve bilgilerinizi aşağıdaki şekilde doldurun.<br><br>
@@ -174,7 +174,7 @@ OBIS Notifier is an automation tool that periodically checks grade updates on AD
 ### Method 1: Easy Setup via .exe
 
 1. Complete the **Telegram Bot Setup** section below.
-2. From the [Releases](https://github.com/basarob/OBISNotifier/releases) page, download:
+2. From the [Releases](https://github.com/basarob/OBIS-Notifier/releases) page, download:
    - `OBISNotifier.exe`
    - `ms-playwright/` folder
 3. Open `config.py` with Notepad and fill in your information like this:<br><br>
