@@ -1,13 +1,41 @@
-from config import mail, sifre, yariyil, tarayici, telegram_bot_token, telegram_chat_id, gorunurluk, sure
 from playwright.sync_api import sync_playwright
 from bs4 import BeautifulSoup
 import json
+import importlib.util
 import os
+import sys
+os.environ["PLAYWRIGHT_BROWSERS_PATH"] = "ms-playwright"
 from datetime import datetime
 import time
 import schedule
 import requests
 import logging
+
+def get_base_path():
+    if getattr(sys, 'frozen', False):
+        # PyInstaller ile paketlenmiş exe çalışıyor
+        return sys._MEIPASS
+    return os.path.dirname(os.path.abspath(__file__))
+
+def load_config():
+    if getattr(sys, 'frozen', False):
+        # PyInstaller ile paketlenmiş exe çalışıyor
+        # EXE'nin gerçek çalışma dizini (working directory) alınır
+        base_path = os.getcwd()  # EXE'nin çalıştırıldığı klasör
+    else:
+        base_path = os.path.dirname(os.path.abspath(__file__))  # script dosyasının klasörü
+
+    config_path = os.path.join(base_path, "config.py")
+
+    if not os.path.exists(config_path):
+        logging.error(f"Config dosyası bulunamadı: {config_path}")
+        print(f"[HATA] Config dosyası bulunamadı: {config_path}")
+        exit(1)
+
+    spec = importlib.util.spec_from_file_location("config", config_path)
+    config = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(config)
+    return config
 
 logging.basicConfig(
     level=logging.INFO,
@@ -20,14 +48,16 @@ logging.basicConfig(
 
 class OBISNotifier:
     def __init__(self):
-        self.email = mail
-        self.password = sifre
-        self.yariyil = yariyil
-        self.tarayici = tarayici
-        self.telegram_chat_id = telegram_chat_id
-        self.telegram_bot_token = telegram_bot_token
-        self.gorunurluk = gorunurluk
-        self.sure = sure
+        config = load_config()
+
+        self.email = config.mail
+        self.password = config.sifre
+        self.yariyil = config.yariyil
+        self.tarayici = config.tarayici
+        self.telegram_chat_id = config.telegram_chat_id
+        self.telegram_bot_token = config.telegram_bot_token
+        self.gorunurluk = config.gorunurluk
+        self.sure = config.sure
 
         self.browser = None
         self.page = None
@@ -63,9 +93,9 @@ class OBISNotifier:
             "firefox": self.playwright.firefox,
             "webkit": self.playwright.webkit
         }
-        
-        self.browser = browsers[tarayici].launch(
-            headless=gorunurluk,
+
+        self.browser = browsers[self.tarayici].launch(
+            headless=self.gorunurluk,
             slow_mo=500
         )
 
@@ -139,7 +169,7 @@ class OBISNotifier:
             dropdown_list = self.page.locator('#ctl00_ctl00_cphMain_cphContent_cmbDonem_DropDown')
             dropdown_list.wait_for(state='visible')
 
-            semester = self.page.locator(f'li:has-text("{yariyil}")')
+            semester = self.page.locator(f'li:has-text("{self.yariyil}")')
             semester.click()
             
             self.page.wait_for_load_state('networkidle')
@@ -343,8 +373,8 @@ class OBISNotifier:
         self.check_grades_once()
         
         # 30 dakikada bir kontrol et
-        schedule.every(sure).minutes.do(self.check_grades_once)
-        
+        schedule.every(self.sure).minutes.do(self.check_grades_once)
+
         try:
             while self.running:
                 schedule.run_pending()
