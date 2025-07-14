@@ -1,18 +1,60 @@
-from config import mail, sifre, yariyil, tarayici
+from config import mail, sifre, yariyil, tarayici, telegram_bot_token, telegram_chat_id, gorunurluk, sure
 from playwright.sync_api import sync_playwright
 from bs4 import BeautifulSoup
 import json
+import os
+from datetime import datetime
 import time
+import schedule
+import requests
+import logging
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('obis_notifier.log'),
+        logging.StreamHandler()
+    ]
+)
 
 class OBISNotifier:
     def __init__(self):
         self.email = mail
         self.password = sifre
+        self.yariyil = yariyil
+        self.tarayici = tarayici
+        self.telegram_chat_id = telegram_chat_id
+        self.telegram_bot_token = telegram_bot_token
+        self.gorunurluk = gorunurluk
+        self.sure = sure
+
         self.browser = None
         self.page = None
-    
+
+        self.grades_file = "grades_data.json"
+        self.running = True
+
+        self.validate_config()
+
+    def validate_config(self):
+        eksik_alanlar = []
+
+        if not self.email: eksik_alanlar.append("mail")
+        if not self.password: eksik_alanlar.append("sifre")
+        if not self.yariyil: eksik_alanlar.append("yariyil")
+        if not self.tarayici: eksik_alanlar.append("tarayici")
+        if not self.telegram_bot_token: eksik_alanlar.append("telegram_bot_token")
+        if not self.telegram_chat_id: eksik_alanlar.append("telegram_chat_id")
+
+        if eksik_alanlar:
+            logging.error(f"config.py dosyasında eksik alan(lar) var: {', '.join(eksik_alanlar)}")
+            print(f"\n[HATA] config.py dosyasındaki şu alan(lar) eksik veya boş: {', '.join(eksik_alanlar)}")
+            print("Lütfen config.py dosyasını açıp eksik bilgileri tamamlayın.")
+            exit(1)
+
     def setup_browser(self):
-        print("🔧 Tarayıcı başlatılıyor...")
+        logging.info("Tarayıcı başlatılıyor...")
 
         self.playwright = sync_playwright().start()
 
@@ -23,21 +65,19 @@ class OBISNotifier:
         }
         
         self.browser = browsers[tarayici].launch(
-            headless=False,  # Görmek için False, production'da True yap
+            headless=gorunurluk,
             slow_mo=500
         )
 
         self.page = self.browser.new_page()
-
         self.page.set_viewport_size({"width": 1280, "height": 720})
     
     def login(self):
-        print("🔐 OBİS'e giriş yapılıyor...")
+        logging.info("OBİS'e giriş yapılıyor...")
 
         try:
 
             self.page.goto("https://obisnet.adu.edu.tr/GIRIS?sw=OBIS&u=o")
-
             self.page.wait_for_load_state('networkidle')
 
             email_input = self.page.locator('input[name="ctl00$ctl00$cphMain$cphContent$loginRecaptcha$UserName"]')
@@ -55,20 +95,19 @@ class OBISNotifier:
             self.page.wait_for_load_state('networkidle')
 
             if self.check_login_success():
-                    print("✅ Giriş başarılı!")
-                    return True
+                logging.info("Giriş başarılı!")
+                return True
             else:
-                print("❌ Giriş başarısız!")
+                logging.error("Giriş başarısız!")
                 return False
         
         except Exception as e:
-            print(f"❌ Giriş sırasında hata: {str(e)}")
+            logging.error(f"Giriş sırasında hata: {str(e)}")
             return False
     
     def check_login_success(self):
         try:
             page_content = self.page.content()
-
             success_indicators = ["ADÜ E-Üniversite Otomasyonu", "Anasayfa", "Duyurular"]
 
             for indicators in success_indicators:
@@ -78,15 +117,20 @@ class OBISNotifier:
             return False
         
         except Exception as e:
-            print(f"❌ Giriş kontrolü hatası: {str(e)}")
+            logging.error(f"Giriş kontrolü hatası: {str(e)}")
             return False
     
     def navigate_to_grades(self):
-        print("📊 Notlar sayfasına gidiliyor...")
+        logging.info("Notlar sayfasına gidiliyor...")
 
         try:
-            self.page.goto("https://obisnet.adu.edu.tr/676360FCF558D08E3E756B0BA226FA")
-            self.page.wait_for_load_state('networkidle')
+            navigation_menu = self.page.locator('.rtLI:has-text("Not Sınav İşlemleri")')
+            navigation_menu.click()
+            navigation_menu.wait_for(state='visible')
+
+            grade_button = self.page.locator('.rtIn:has-text("Öğrenci Not Görüntüle")')
+            grade_button.wait_for(state='visible')
+            grade_button.click()
             
             combobox = self.page.locator('#ctl00_ctl00_cphMain_cphContent_cmbDonem_Arrow')
             combobox.wait_for(state='visible')
@@ -100,24 +144,31 @@ class OBISNotifier:
             
             self.page.wait_for_load_state('networkidle')
 
-            print("✅ Dönem seçildi ve notlar sayfası hazır!")
+            logging.info("Dönem seçildi ve notlar sayfası hazır!")
             return True
             
         except Exception as e:
-            print(f"❌ Notlar sayfasına geçişte hata: {str(e)}")
+            logging.error(f"Notlar sayfasına geçişte hata: {str(e)}")
             return False
         
     def get_grades(self):
-        print("📋 Notlar çekiliyor...")
+        logging.info("Notlar çekiliyor...")
 
         try:
             html_content = self.page.content()
             soup = BeautifulSoup(html_content, 'html.parser')
 
-            table = soup.find("table", {"id": "ctl00_ctl00_cphMain_cphContent_rgridOgrenciDersNot_ctl00"})
             grades = []
+            table = soup.find("table", {"id": "ctl00_ctl00_cphMain_cphContent_rgridOgrenciDersNot_ctl00"})
 
+            if not table:
+                logging.error("Notlar tablosu bulunamadı!")
+                return None
             rows = table.find("tbody").find_all("tr")
+            if not rows:
+                logging.error("Notlar tablosunda satır bulunamadı!")
+                return None
+            
             for row in rows:
                 cells = row.find_all("td")
                 ders = cells[0].get_text(strip=True)
@@ -135,11 +186,112 @@ class OBISNotifier:
             return grades
             
         except Exception as e:
-            print(f"❌ Notlar çekilirken hata: {str(e)}")
+            logging.error(f"Notlar çekilirken hata: {str(e)}")
             return None
+        
+    def load_previous_grades(self):
+        if os.path.exists(self.grades_file):
+            try:
+                with open(self.grades_file, 'r', encoding='utf-8') as f:
+                    return json.load(f)
+            except Exception as e:
+                logging.error(f"Önceki notlar yüklenemedi: {str(e)}")
+                return None
+        return None
     
+    def save_grades(self, grades):
+        try:
+            data = {
+                "timestamp": datetime.now().isoformat(),
+                "grades": grades
+            }
+            with open(self.grades_file, 'w', encoding='utf-8') as f:
+                json.dump(data, f, indent=2, ensure_ascii=False)
+            logging.info("Notlar başarıyla kaydedildi!")
+            return True
+        except Exception as e:
+            logging.error(f"Notlar kaydedilemedi: {str(e)}")
+            return False
+    
+    def compare_grades(self, old_grades, new_grades):
+        if not old_grades:
+            changes = []
+            for grade in new_grades:
+                changes.append({
+                "ders": grade["Ders Adı"],
+                "eski": None,
+                "yeni": grade
+            })
+            return changes, "İlk kontrol"
+        
+        old_dict = {grade["Ders Adı"]: grade for grade in old_grades["grades"]}
+        new_dict = {grade["Ders Adı"]: grade for grade in new_grades}
+        
+        changes = []
+        
+        for ders_adi, new_grade in new_dict.items():
+            if ders_adi in old_dict:
+                old_grade = old_dict[ders_adi]
+                if (old_grade["Sınavlar"] != new_grade["Sınavlar"] or 
+                    old_grade["Harf Notu"] != new_grade["Harf Notu"] or 
+                    old_grade["Sonuç"] != new_grade["Sonuç"]):
+                    
+                    changes.append({
+                        "ders": ders_adi,
+                        "eski": old_grade,
+                        "yeni": new_grade
+                    })
+            else:
+                changes.append({
+                    "ders": ders_adi,
+                    "eski": None,
+                    "yeni": new_grade
+                })
+        
+        return changes, "Değişiklik bulundu" if changes else "Değişiklik yok"
+    
+    def send_telegram_notification(self, changes):
+        if not changes:
+            return
+        
+        logging.info("Telegram bildirimi gönderiliyor...")
+        
+        for change in changes:
+            message = f"📚 *{change['ders']}*\n\n"
+            
+            if change['eski']:
+                message += "🔄 *Güncellendi:*\n"
+                message += f"• Sınavlar: {change['yeni']['Sınavlar']}\n"
+                message += f"• Harf Notu: {change['yeni']['Harf Notu']}\n"
+                message += f"• Sonuç: {change['yeni']['Sonuç']}\n"
+            else:
+                message += "🆕 *Yeni Ders:*\n"
+                message += f"• Sınavlar: {change['yeni']['Sınavlar']}\n"
+                message += f"• Harf Notu: {change['yeni']['Harf Notu']}\n"
+                message += f"• Sonuç: {change['yeni']['Sonuç']}\n"
+            
+            message += f"\n⏰ {datetime.now().strftime('%d.%m.%Y %H:%M')}"
+            
+            try:
+                url = f"https://api.telegram.org/bot{self.telegram_bot_token}/sendMessage"
+                payload = {
+                    'chat_id': self.telegram_chat_id,
+                    'text': message,
+                    'parse_mode': 'Markdown'
+                }
+                
+                response = requests.post(url, json=payload)
+                
+                if response.status_code == 200:
+                    logging.info(f"Telegram bildirimi gönderildi: {change['ders']}")
+                else:
+                    logging.error(f"Telegram bildirimi gönderilemedi: {response.text}")
+                    
+            except Exception as e:
+                logging.error(f"Telegram bildirimi hatası: {str(e)}")
+
     def cleanup(self):
-        print("🧹 Temizlik yapılıyor...")
+        logging.info("Temizlik yapılıyor...")
         
         if self.browser:
             self.browser.close()
@@ -147,39 +299,66 @@ class OBISNotifier:
         if hasattr(self, 'playwright'):
             self.playwright.stop()
         
-        print("✅ Temizlik tamamlandı!")
+        logging.info("Temizlik tamamlandı!")
+    
+    def check_grades_once(self):
+        try:
+            self.setup_browser()
+            
+            if self.login():
+                if self.navigate_to_grades():
+                    new_grades = self.get_grades()
+                    if new_grades:
+                        old_grades = self.load_previous_grades()
+                        changes, status = self.compare_grades(old_grades, new_grades)
+                        
+                        if changes:
+                            self.send_telegram_notification(changes)
+                        else:
+                            logging.info("Herhangi bir değişiklik bulunamadı.")
+                        
+                        self.save_grades(new_grades)
+                        return True
+                    else:
+                        logging.error("Notlar çekilemedi!")
+                        return False
+                else:
+                    logging.error("Notlar sayfasına gidilemedi!")
+                    return False
+            else:
+                logging.error("Giriş yapılamadı!")
+                return False
+        
+        except Exception as e:
+            logging.error(f"Kontrol sırasında hata: {str(e)}")
+            return False
+        
+        finally:
+            self.cleanup()
 
+    def start_monitoring(self):
+        logging.info("Sürekli izleme başlatılıyor...")
+        
+        # İlk kontrolü yap
+        self.check_grades_once()
+        
+        # 30 dakikada bir kontrol et
+        schedule.every(sure).minutes.do(self.check_grades_once)
+        
+        try:
+            while self.running:
+                schedule.run_pending()
+                time.sleep(60)  # 1 dakika bekle
+        except KeyboardInterrupt:
+            logging.info("İzleme durduruldu!")
+            self.running = False
 
 def main():
-    print("🚀 OBIS Notifier başlatılıyor...")
-
+    
+    logging.info("OBIS Notifier başlatılıyor...")
+    
     notifier = OBISNotifier()
-
-    try:
-        notifier.setup_browser()
-        
-        # Giriş yap
-        if notifier.login():
-            # Notlar sayfasına git
-            if notifier.navigate_to_grades():
-                # Notları çek
-                grades = notifier.get_grades()
-                if grades:
-                    print("📊 Notlar başarıyla çekildi!")
-                    print(notifier.get_grades())
-                else:
-                    print("❌ Notlar çekilemedi!")
-            else:
-                print("❌ Notlar sayfasına gidilemedi!")
-        else:
-            print("❌ Giriş yapılamadı!")
-    
-    except Exception as e:
-        print(f"❌ Genel hata: {str(e)}")
-    
-    finally:
-        # Her durumda temizlik yap
-        notifier.cleanup()
+    notifier.start_monitoring()
 
 if __name__ == "__main__":
     main()
