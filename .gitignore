@@ -1,3 +1,16 @@
+# Çıktılar ve geçici dosyalar
+__pycache__/
+*.pyc
+*.pyo
+*.exe
+*.log
 grades_data.json
 obis_notifier.log
-__pycache__
+
+# PyInstaller çıktı klasörleri
+build/
+dist/
+*.spec
+
+# Playwright klasörü
+ms-playwright/
