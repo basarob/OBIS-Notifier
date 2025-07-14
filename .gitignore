@@ -1,1 +1,3 @@
-config.py
+grades_data.json
+obis_notifier.log
+__pycache__
