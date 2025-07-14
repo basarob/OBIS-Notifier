@@ -15,11 +15,11 @@ OBIS Notifier, ADÜ Öğrenci Bilgi Sistemi (OBİS) üzerinden not değişiklikl
 
 ### 📬 Telegram Bildirimi
 
-![Telegram](screenshots/telegram.png)
+<img src="screenshots/telegram.png" alt="Telegram" width="300"/>
 
 ### 💻 Konsol Logları
 
-![Log](screenshots/logs.png)
+<img src="screenshots/logs.png" alt="Log" width="600"/>
 
 ---
 
@@ -161,11 +161,11 @@ OBIS Notifier is an automation tool that periodically checks grade updates on AD
 
 ### 📬 Telegram Notification
 
-![Telegram](screenshots/telegram.png)
+<img src="screenshots/telegram.png" alt="Telegram" width="300"/>
 
 ### 💻 Console Logs
 
-![Log](screenshots/logs.png)
+<img src="screenshots/logs.png" alt="Log" width="600"/>
 
 ---
 
