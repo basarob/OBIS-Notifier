@@ -155,8 +155,8 @@ class OBISNotifier:
 
         try:
             navigation_menu = self.page.locator('.rtLI:has-text("Not Sınav İşlemleri")')
-            navigation_menu.click()
             navigation_menu.wait_for(state='visible')
+            navigation_menu.click()
 
             grade_button = self.page.locator('.rtIn:has-text("Öğrenci Not Görüntüle")')
             grade_button.wait_for(state='visible')
@@ -173,6 +173,7 @@ class OBISNotifier:
             semester.click()
             
             self.page.wait_for_load_state('networkidle')
+            self.page.wait_for_selector('#ctl00_ctl00_cphMain_cphContent_rgridOgrenciDersNot_ctl00',state='visible')
 
             logging.info("Dönem seçildi ve notlar sayfası hazır!")
             return True
