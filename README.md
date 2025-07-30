@@ -1,19 +1,24 @@
 # 🎓 OBIS Notifier (TR)
 
-OBIS Notifier, ADÜ Öğrenci Bilgi Sistemi (OBİS) üzerinden not değişikliklerini periyodik olarak kontrol eden ve yeni notları size **Telegram** üzerinden bildiren bir otomasyon uygulamasıdır.
+OBIS Notifier, ADÜ Öğrenci Bilgi Sistemi (OBİS) üzerinden not değişikliklerini periyodik olarak kontrol eden ve yeni notları size **E-Mail** veya **Telegram** üzerinden bildiren bir otomasyon uygulamasıdır.
 
 ## 🚀 Özellikler
 
 - 🔐 OBİS'e otomatik giriş
 - 📈 Notların arka planda düzenli kontrolü
-- 🔔 Yeni veya değişen notlar için Telegram bildirimi
+- 📩 E-mail veya Telegram üzerinden bildirim alabilme imkanı
+- 🔔 Yeni veya değişen notlar için bildirim
 - 🖥️ Arka planda sessiz çalışma
 - 💾 Not geçmişi dosya olarak saklanır
 - 📋 Kolay yapılandırılabilir `config.py`
 
 ## 🖼️ Ekran Görüntüleri
 
-### 📬 Telegram Bildirimi
+### ✉️ E-Mail Bildirimi
+
+<img src="screenshots/email.png" alt="email" width="600"/>
+
+### ▶️ Telegram Bildirimi
 
 <img src="screenshots/telegram.png" alt="Telegram" width="300"/>
 
@@ -27,21 +32,24 @@ OBIS Notifier, ADÜ Öğrenci Bilgi Sistemi (OBİS) üzerinden not değişiklikl
 
 ### Yöntem 1: .exe Dosyası ile Kolay Kurulum
 
-1. Aşağıdaki **Telegram Bot Kurulumu** bölümünü tamamlayın.
-2. [Releases](https://github.com/basarob/OBIS-Notifier/releases) sekmesinden:
-   - `OBISNotifier.exe` dosyasını,
-   - `ms-playwright/` klasörünü indirin.
-3. `config.py` dosyasını `Not Defteri` ile açın ve bilgilerinizi aşağıdaki şekilde doldurun.<br><br>
+1. E-Mail bildirimi almak istiyorsanız `config.py` dosasını 4. adımdaki gibi doldurun.
+2. Telegram bildirimi almak istiyorsanız **Telegram Bot Kurulumu** bölümünü tamamlayın.
+3. [Releases](https://github.com/basarob/OBIS-Notifier/releases) sekmesinden:
+   - `OBIS-Notifier-v1.2.zip` dosyasını indirin ve zip'ten çıkartın.
+4. `config.py` dosyasını `Not Defteri` ile açın ve bilgilerinizi aşağıdaki şekilde doldurun.<br><br>
    ```bash
-   mail = "ogrencino@adu.edu.tr"
-   sifre = "şifreniz"
-   yariyil = "24/25 Bahar"  # Kontrol edilecek yarıyıl
+   obis_mail = "ogrencino@adu.edu.tr"
+   obis_sifre = "şifreniz"
+   yariyil = "24/25 Bahar"       # Kontrol edilecek yarıyıl
+   use_email = True              # Mail bildirimi almak için True
+   alici_email = 'mail_adresiniz'
+   use_telegram = False          # Telegram bildirimi almak için True
    telegram_bot_token = "bot_token"
    telegram_chat_id = "chat_id"
    ```
-4. Tüm dosya ve klasörleri aynı klasörde tutun.
-5. `setup.bat` dosyasını çalıştırın (gereksinimler otomatik kurulur).
-6. `OBISNotifier.exe` dosyasına çift tıklayarak çalıştırın.
+5. Tüm dosya ve klasörleri aynı klasörde tutun.
+6. `setup.bat` dosyasını çalıştırın (gereksinimler otomatik kurulur).
+7. `OBISNotifier.exe` dosyasına çift tıklayarak çalıştırın.
 
 > 📌 _Programı durdurmak için CMD ekranını kapatmanız yeterlidir._
 
@@ -68,9 +76,12 @@ OBIS Notifier, ADÜ Öğrenci Bilgi Sistemi (OBİS) üzerinden not değişiklikl
 3. `config.py` dosyasında şu kısımları düzenleyin:
 
    ```bash
-   mail = "ogrencino@adu.edu.tr"
-   sifre = "şifreniz"
-   yariyil = "24/25 Bahar"  # Kontrol edilecek yarıyıl
+   obis_mail = "ogrencino@adu.edu.tr"
+   obis_sifre = "şifreniz"
+   yariyil = "24/25 Bahar"       # Kontrol edilecek yarıyıl
+   use_email = True              # Mail bildirimi almak için True
+   alici_email = 'mail_adresiniz'
+   use_telegram = False          # Telegram bildirimi almak için True
    telegram_bot_token = "bot_token"
    telegram_chat_id = "chat_id"
 
@@ -127,6 +138,8 @@ OBISNotifier/<br>
 - [Requests](https://requests.readthedocs.io/en/latest/) — HTTP istekleri için
 - [Schedule](https://schedule.readthedocs.io/en/stable/) — Zamanlanmış görevler için
 - [PyInstaller](https://www.pyinstaller.org/) — Python uygulamasını .exe’ye dönüştürmek için
+- [Smtplib](https://docs.python.org/3/library/smtplib.html) — SMTP üzerinden e-mail göndermek için
+- [Email](https://docs.python.org/3/library/email.html) — MIME tipinde e-posta formatı oluşturmak için
 - [Telegram Bot API](https://core.telegram.org/bots/api) — Bildirimler için
 
 ---
@@ -141,17 +154,19 @@ OBISNotifier/<br>
 
 - `config.py` dosyasını kimseyle **paylaşmayın**.
 - Şifre, Telegram bot token’ı ve chat ID gibi veriler gizli tutulmalıdır.
+- Gönderici mail adresini değiştirmek isterseniz, kullanacağınız mail'in app password şifresini alıp `config.py` dosyasına eklemeniz gereklidir.
 
 ---
 
 # 🎓 OBIS Notifier (EN)
 
-OBIS Notifier is an automation tool that periodically checks grade updates on ADÜ’s Student Information System (OBİS) and sends new grades directly to you via **Telegram**.
+OBIS Notifier is an automation tool that periodically checks grade updates on ADÜ’s Student Information System (OBİS) and sends new grades directly to you via **E-Mail** or **Telegram**.
 
 ## 🚀 Features
 
 - 🔐 Automatic login to OBIS
 - 📈 Background periodic grade checks
+- 📩 Ability to receive notifications via E-mail or Telegram
 - 🔔 Telegram notifications for new or changed grades
 - 🖥️ Silent background operation
 - 💾 Saves grade history as a local file
@@ -159,7 +174,11 @@ OBIS Notifier is an automation tool that periodically checks grade updates on AD
 
 ## 🖼️ Screenshots
 
-### 📬 Telegram Notification
+### ✉️ E-Mail Notification
+
+<img src="screenshots/email.png" alt="email" width="600"/>
+
+### ▶️ Telegram Notification
 
 <img src="screenshots/telegram.png" alt="Telegram" width="300"/>
 
@@ -173,21 +192,24 @@ OBIS Notifier is an automation tool that periodically checks grade updates on AD
 
 ### Method 1: Easy Setup via .exe
 
-1. Complete the **Telegram Bot Setup** section below.
-2. From the [Releases](https://github.com/basarob/OBIS-Notifier/releases) page, download:
-   - `OBISNotifier.exe`
-   - `ms-playwright/` folder
-3. Open `config.py` with Notepad and fill in your information like this:<br><br>
+1. If you want to receive e-mail notifications, fill out the `config.py` file as in step 4.
+2. Complete the **Telegram Bot Setup** section below.
+3. From the [Releases](https://github.com/basarob/OBIS-Notifier/releases) page, download:
+   - `OBISNotifier.exe` and extract it.
+4. Open `config.py` with `Notepad` and fill in your information like this:<br><br>
    ```python
-   mail = "studentnumber@adu.edu.tr"
-   sifre = "password"
-   yariyil = "24/25 Bahar"  # The semester to check
+   obis_mail = "studentnumber@adu.edu.tr"
+   obis_sifre = "password"
+   yariyil = "24/25 Bahar"       # The semester to check
+   use_email = True              # True to receive email notifications
+   alici_email = 'your_email'
+   use_telegram = False          # True to receive Telegram notifications
    telegram_bot_token = "bot_token"
    telegram_chat_id = "chat_id"
    ```
-4. Make sure all files and folders are in the same directory.
-5. Run `setup.bat` to install the required dependencies.
-6. Double-click `OBISNotifier.exe` to launch the app.
+5. Make sure all files and folders are in the same directory.
+6. Run `setup.bat` to install the required dependencies.
+7. Double-click `OBISNotifier.exe` to launch the app.
 
 > 📌 _To stop the app, simply close the CMD window._
 
@@ -214,9 +236,12 @@ OBIS Notifier is an automation tool that periodically checks grade updates on AD
 3. Edit the following values in `config.py`:
 
    ```bash
-   mail = "studentnumber@adu.edu.tr"
-   sifre = "password"
-   yariyil = "24/25 Bahar"  # The semester to check
+   obis_mail = "studentnumber@adu.edu.tr"
+   obis_sifre = "password"
+   yariyil = "24/25 Bahar"       # The semester to check
+   use_email = True              # True to receive email notifications
+   alici_email = 'your_email'
+   use_telegram = False          # True to receive Telegram notifications
    telegram_bot_token = "bot_token"
    telegram_chat_id = "chat_id"
 
@@ -273,6 +298,8 @@ OBISNotifier/<br>
 - [Requests](https://requests.readthedocs.io/en/latest/) — For HTTP requests
 - [Schedule](https://schedule.readthedocs.io/en/stable/) — For scheduled tasks
 - [PyInstaller](https://www.pyinstaller.org/) — To convert Python app to .exe
+- [Smtplib](https://docs.python.org/3/library/smtplib.html) — To send email via SMTP
+- [Email](https://docs.python.org/3/library/email.html) — To create an email format in MIME type
 - [Telegram Bot API](https://core.telegram.org/bots/api) — For notifications
 
 ---
@@ -287,6 +314,7 @@ OBISNotifier/<br>
 
 - Do **not** share your `config.py` file with others.
 - Keep your password, Telegram bot token, and chat ID confidential.
+- If you want to change the sender email address, you need to get the app password of the email you will use and add it to the `config.py` file.
 
 ---
 

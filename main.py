@@ -10,20 +10,20 @@ import time
 import schedule
 import requests
 import logging
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
 def get_base_path():
     if getattr(sys, 'frozen', False):
-        # PyInstaller ile paketlenmiş exe çalışıyor
         return sys._MEIPASS
     return os.path.dirname(os.path.abspath(__file__))
 
 def load_config():
     if getattr(sys, 'frozen', False):
-        # PyInstaller ile paketlenmiş exe çalışıyor
-        # EXE'nin gerçek çalışma dizini (working directory) alınır
-        base_path = os.getcwd()  # EXE'nin çalıştırıldığı klasör
+        base_path = os.getcwd()
     else:
-        base_path = os.path.dirname(os.path.abspath(__file__))  # script dosyasının klasörü
+        base_path = os.path.dirname(os.path.abspath(__file__))
 
     config_path = os.path.join(base_path, "config.py")
 
@@ -50,12 +50,17 @@ class OBISNotifier:
     def __init__(self):
         config = load_config()
 
-        self.email = config.mail
-        self.password = config.sifre
+        self.email = config.obis_mail
+        self.password = config.obis_sifre
         self.yariyil = config.yariyil
-        self.tarayici = config.tarayici
+        self.gonderen_email = config.gonderen_email
+        self.gonderen_password = config.gonderen_password
+        self.alici_email = config.alici_email
         self.telegram_chat_id = config.telegram_chat_id
         self.telegram_bot_token = config.telegram_bot_token
+        self.use_email = config.use_email
+        self.use_telegram = config.use_telegram
+        self.tarayici = config.tarayici
         self.gorunurluk = config.gorunurluk
         self.sure = config.sure
 
@@ -70,12 +75,19 @@ class OBISNotifier:
     def validate_config(self):
         eksik_alanlar = []
 
-        if not self.email: eksik_alanlar.append("mail")
-        if not self.password: eksik_alanlar.append("sifre")
+        if not self.email: eksik_alanlar.append("obis_mail")
+        if not self.password: eksik_alanlar.append("obis_sifre")
         if not self.yariyil: eksik_alanlar.append("yariyil")
-        if not self.tarayici: eksik_alanlar.append("tarayici")
+        if not self.gonderen_email: eksik_alanlar.append("gonderen_mail")
+        if not self.gonderen_password: eksik_alanlar.append("gonderen_password")
+        if not self.alici_email: eksik_alanlar.append("alici_email")
         if not self.telegram_bot_token: eksik_alanlar.append("telegram_bot_token")
         if not self.telegram_chat_id: eksik_alanlar.append("telegram_chat_id")
+        if not isinstance(self.use_email, bool):
+            eksik_alanlar.append("use_email (True veya False olmalı)")
+        if not isinstance(self.use_telegram, bool):
+            eksik_alanlar.append("use_telegram (True veya False olmalı)")
+        if not self.tarayici: eksik_alanlar.append("tarayici")
 
         if eksik_alanlar:
             logging.error(f"config.py dosyasında eksik alan(lar) var: {', '.join(eksik_alanlar)}")
@@ -128,7 +140,7 @@ class OBISNotifier:
                 logging.info("Giriş başarılı!")
                 return True
             else:
-                logging.error("Giriş başarısız!")
+                logging.error("Giriş başarısız! Mail veya şifre hatalı olabilir.")
                 return False
         
         except Exception as e:
@@ -138,12 +150,12 @@ class OBISNotifier:
     def check_login_success(self):
         try:
             page_content = self.page.content()
-            success_indicators = ["ADÜ E-Üniversite Otomasyonu", "Anasayfa", "Duyurular"]
+            success_indicators = ["Ders Kayıt İşlemleri", "Not Sınav İşlemleri"]
 
             for indicators in success_indicators:
                 if indicators in page_content:
                     return True
-                
+
             return False
         
         except Exception as e:
@@ -281,6 +293,45 @@ class OBISNotifier:
         
         return changes, "Değişiklik bulundu" if changes else "Değişiklik yok"
     
+    def send_email_notification(self, changes):
+        if not changes:
+            return
+        
+        logging.info("E-mail bildirimi gönderiliyor...")
+        
+        for change in changes:
+            subject = f"📚 OBIS Not Güncellemesi - {change['ders']}"
+            body = f"📚 {change['ders']}\n\n"
+            
+            if change['eski']:
+                body += "🔄 Güncellendi:\n"
+                body += f"• Sınavlar: {change['yeni']['Sınavlar']}\n"
+                body += f"• Harf Notu: {change['yeni']['Harf Notu']}\n"
+                body += f"• Sonuç: {change['yeni']['Sonuç']}\n"
+            else:
+                body += "🆕 Yeni Ders:\n"
+                body += f"• Sınavlar: {change['yeni']['Sınavlar']}\n"
+                body += f"• Harf Notu: {change['yeni']['Harf Notu']}\n"
+                body += f"• Sonuç: {change['yeni']['Sonuç']}\n"
+            
+            body += f"\n⏰ {datetime.now().strftime('%d.%m.%Y %H:%M')}"
+            
+            try:
+                msg = MIMEMultipart()
+                msg['From'] = self.gonderen_email
+                msg['To'] = self.alici_email
+                msg['Subject'] = subject
+                msg.attach(MIMEText(body, 'plain'))
+                
+                with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+                    server.login(self.gonderen_email, self.gonderen_password)
+                    server.sendmail(self.gonderen_email, self.alici_email, msg.as_string())
+                
+                logging.info(f"E-posta gönderildi: {change['ders']}")
+
+            except Exception as e:
+                logging.error(f"E-mail bildirimi hatası: {str(e)}")
+
     def send_telegram_notification(self, changes):
         if not changes:
             return
@@ -344,7 +395,10 @@ class OBISNotifier:
                         changes, status = self.compare_grades(old_grades, new_grades)
                         
                         if changes:
-                            self.send_telegram_notification(changes)
+                            if self.use_email:
+                                self.send_email_notification(changes)
+                            if self.use_telegram:
+                                self.send_telegram_notification(changes)
                         else:
                             logging.info("Herhangi bir değişiklik bulunamadı.")
                         
@@ -370,16 +424,14 @@ class OBISNotifier:
     def start_monitoring(self):
         logging.info("Sürekli izleme başlatılıyor...")
         
-        # İlk kontrolü yap
         self.check_grades_once()
         
-        # 30 dakikada bir kontrol et
         schedule.every(self.sure).minutes.do(self.check_grades_once)
 
         try:
             while self.running:
                 schedule.run_pending()
-                time.sleep(60)  # 1 dakika bekle
+                time.sleep(60)
         except KeyboardInterrupt:
             logging.info("İzleme durduruldu!")
             self.running = False
