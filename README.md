@@ -116,15 +116,12 @@ OBIS Notifier, ADÜ Öğrenci Bilgi Sistemi (OBİS) üzerinden not değişiklikl
 ## 📁 Proje Yapısı
 
 OBISNotifier/<br>
-├── main.py <br>
-├── config.py <br>
-├── setup.bat <br>
-├── requirements.txt <br>
-├── README.md <br>
-├── OBISNotifier.exe <br>
 ├── ms-playwright/ <br>
-├── screenshots/ <br>
-├── .gitignore <br>
+├── config.py <br>
+├── OBISNotifier.exe <br>
+├── README.md <br>
+├── requirements.txt <br>
+├── setup.bat <br>
 
 > 📌 `OBISNotifier.exe` çalışırken `config.py` ve `ms-playwright/` klasörünün aynı dizinde olması gerekir.\*
 
@@ -276,15 +273,12 @@ OBIS Notifier is an automation tool that periodically checks grade updates on AD
 ## 📁 Project Structure
 
 OBISNotifier/<br>
-├── main.py <br>
-├── config.py <br>
-├── setup.bat <br>
-├── requirements.txt <br>
-├── README.md <br>
-├── OBISNotifier.exe <br>
 ├── ms-playwright/ <br>
-├── screenshots/ <br>
-├── .gitignore <br>
+├── config.py <br>
+├── OBISNotifier.exe <br>
+├── README.md <br>
+├── requirements.txt <br>
+├── setup.bat <br>
 
 > 📌 `OBISNotifier.exe` requires `config.py` and `ms-playwright/` to be in the same folder.
 
