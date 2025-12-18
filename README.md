@@ -65,7 +65,7 @@ OBIS-Notifier/
 
 ---
 
-<h2 id="english">🇬🇧 English</h2>
+<h2 id="english">🇪🇳 English</h2>
 
 ### 🚀 About The Project
 **OBIS Notifier** is a smart desktop automation tool designed for university students to track their grades on the **OBIS (Student Information System)** in real-time.
