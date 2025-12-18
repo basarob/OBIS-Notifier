@@ -1,0 +1,23 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+
+# --- Dağıtım (Distribution) ---
+dist/
+build/
+*.spec
+*.exe
+
+# --- Loglar ve Veriler ---
+*.log
+grades_data.json
+settings.json
+obis_notifier.log
+
+# --- Playwright ---
+ms-playwright/
+
+# --- IDE ---
+.vscode/
+.idea/
