@@ -23,6 +23,7 @@ Sürekli siteye girip "Acaba notum açıklandı mı?" diye F5 yapmaktan yorulduy
 - **🖼️ Modern Arayüz:** Kullanıcı dostu, şık ve anlaşılır arayüz.
 - **🤖 Akıllı Kurulum:** Tek bir `EXE` dosyasıyla çalışır. Gerekli tarayıcı bileşenlerini otomatik kurar.
 - **🛡️ Güvenli:** Şifreniz sadece kendi bilgisayarınızda tutulur, dışarı aktarılmaz.
+- **🧹 Temiz Çalışma Alanı:** Ayarlar ve loglar `%AppData%` klasöründe saklanır, masaüstünüzü kirletmez.
 
 ### ⚙️ Kullanılan Teknolojiler
 Bu proje, modern ve güçlü kütüphaneler kullanılarak geliştirilmiştir:
@@ -87,6 +88,7 @@ Stop refreshing the page every 5 minutes! Let OBIS Notifier handle the stress fo
 - **🖼️ Modern UI:** Sleek and user-friendly interface powered by CustomTkinter.
 - **🤖 Smart Setup:** Runs as a single portable `EXE`. Automatically installs necessary browser components.
 - **🛡️ Secure:** Your credentials are stored locally and never shared.
+- **🧹 Clean Workspace:** Settings and logs are stored in `%AppData%`, keeping your desktop clean.
 
 ### ⚙️ Tech Stack
 - **[Python 3.11](https://www.python.org/)**
