@@ -3,7 +3,7 @@ title OBIS Notifier Kurulum Sihirbazi
 
 cls
 echo ===========================================
-echo        OBIS Notifier v2.0 Kurulumu          
+echo        OBIS Notifier v2.1 Kurulumu          
 echo ===========================================
 echo.
 
@@ -47,7 +47,7 @@ echo.
 echo [5/5] Uygulama (EXE) olusturuluyor...
 echo Bu islem biraz zaman alabilir...
 if not exist "dist" mkdir "dist"
-pyinstaller --noconsole --onefile --name "OBISNotifier" --distpath "dist" --workpath "build" --icon="src/images/icon.ico" --add-data "src/images;images" --hidden-import "pystray" --hidden-import "PIL" --paths="src" src/main_gui.py
+pyinstaller --noconsole --onefile --name "OBISNotifier" --distpath "dist" --workpath "build" --icon="src/images/icon.ico" --add-data "src/images;images" --hidden-import "pystray" --hidden-import "PIL" --hidden-import "win11toast" --hidden-import "requests" --hidden-import "packaging" --paths="src" src/main_gui.py
 
 IF %ERRORLEVEL% EQU 0 (
     echo.

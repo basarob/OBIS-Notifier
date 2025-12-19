@@ -1,24 +1,25 @@
+from win11toast import toast
+import ctypes
 import json
 import logging
 import os
 import queue
 import sys
 import threading
-from typing import Any, Dict, Optional
-
+import webbrowser
+from typing import Any, Dict, Optional, List
 import customtkinter as ctk
 import pystray
 from PIL import Image, ImageDraw, ImageTk
 from tkinter import messagebox
-
-from backend import OBISNotifier, set_auto_start, ensure_browsers_installed
+from backend import OBISNotifier, set_auto_start, ensure_browsers_installed, CURRENT_VERSION, check_for_updates, get_user_data_dir
 
 # Playwright tarayıcı yolu düzeltmesi (PyInstaller ile uyumluluk için)
 if getattr(sys, 'frozen', False):
     os.environ["PLAYWRIGHT_BROWSERS_PATH"] = os.path.join(os.getenv("LOCALAPPDATA"), "ms-playwright")
 
 # Sabitler
-SETTINGS_FILE = "settings.json"
+SETTINGS_FILE = os.path.join(get_user_data_dir(), "settings.json")
 
 # Loglama için kuyruk (Queue)
 log_queue: queue.Queue = queue.Queue()
@@ -76,7 +77,7 @@ class App(ctk.CTk):
         super().__init__()
 
         self.title("OBIS Notifier")
-        self.geometry("900x600")
+        self.geometry("900x700")
         self.resizable(False, False)
 
         # .Tema ayarları
@@ -94,16 +95,27 @@ class App(ctk.CTk):
         self.tray_icon: Optional[pystray.Icon] = None
 
         # Değişkenler
-        self.obis_mail_var = ctk.StringVar()
+        self.student_id_var = ctk.StringVar()
         self.obis_password_var = ctk.StringVar()
+        
+        self.notify_email_var = ctk.BooleanVar(value=False)
+        self.notify_windows_var = ctk.BooleanVar(value=False)
+        
         self.sender_email_var = ctk.StringVar()
         self.gmail_password_var = ctk.StringVar()
         self.semester_var = ctk.StringVar()
         self.interval_var = ctk.StringVar(value="20")
+        
+        # Gelişmiş Ayarlar
+        self.advanced_settings_visible = False
         self.browser_var = ctk.StringVar(value="chromium")
         self.minimize_var = ctk.BooleanVar()
         self.autostart_var = ctk.BooleanVar()
         self.stop_failure_var = ctk.BooleanVar(value=True)
+
+        # Şifre Göster/Gizle Durumu
+        self.show_obis_pass = False
+        self.show_gmail_pass = False
 
         # Arayüz Elemanlarını Oluştur
         self.create_settings_widgets()
@@ -111,6 +123,9 @@ class App(ctk.CTk):
 
         # Ayarları Yükle
         self.load_settings()
+
+        # Event Bindings (Dinamik Arayüz için)
+        self.notify_email_var.trace_add("write", self.update_email_fields_visibility)
 
         # Backend referansı
         self.notifier: Optional[OBISNotifier] = None
@@ -127,6 +142,9 @@ class App(ctk.CTk):
         # İkon ayarla
         self.icon_image: Optional[Image.Image] = None
         self.setup_icon()
+        
+        # .Tray ikonunu başlat (Bildirimler için gerekli)
+        self.init_tray_icon()
 
         # Başlangıç Kontrolleri
         self.after(200, self.run_startup_checks)
@@ -139,6 +157,9 @@ class App(ctk.CTk):
                 messagebox.showwarning("Uyarı", "Tarayıcı bileşenleri eksik veya yüklenemedi.\nProgram çalışmayabilir.")
             else:
                 logging.info("Sistem kullanıma hazır.")
+            
+            # Güncelleme Kontrolü (Sessiz)
+            self.check_updates(manual=False)
         
         threading.Thread(target=_check, daemon=True).start()
 
@@ -198,72 +219,156 @@ class App(ctk.CTk):
 
     def create_settings_widgets(self) -> None:
         """Ayarlar menüsündeki widget'ları oluşturur."""
-        # 1. OBIS Mail
-        ctk.CTkLabel(self.scrollable, text="OBIS Mail:").grid(row=0, column=0, padx=5, pady=10, sticky="w")
-        self.entry_obis_mail = ctk.CTkEntry(self.scrollable, textvariable=self.obis_mail_var)
-        self.entry_obis_mail.grid(row=0, column=1, padx=5, pady=10, sticky="ew")
-        self.create_info_label(self.scrollable, "ADÜ Öğrenci mail adresiniz.\nÖrn: 123@stu.adu.edu.tr").grid(row=0, column=2, padx=5)
-
+        
+        # === TEMEL AYARLAR ===
+        
+        # 1. Öğrenci Numarası
+        ctk.CTkLabel(self.scrollable, text="Öğrenci No:").grid(row=0, column=0, padx=5, pady=10, sticky="w")
+        self.entry_student_id = ctk.CTkEntry(self.scrollable, textvariable=self.student_id_var, placeholder_text="Örn: 201812345")
+        self.entry_student_id.grid(row=0, column=1, padx=5, pady=10, sticky="ew")
+        
         # 2. OBIS Şifre
         ctk.CTkLabel(self.scrollable, text="OBIS Şifre:").grid(row=1, column=0, padx=5, pady=10, sticky="w")
-        self.entry_obis_pass = ctk.CTkEntry(self.scrollable, textvariable=self.obis_password_var, show="*")
-        self.entry_obis_pass.grid(row=1, column=1, padx=5, pady=10, sticky="ew")
+        
+        pass_frame = ctk.CTkFrame(self.scrollable, fg_color="transparent")
+        pass_frame.grid(row=1, column=1, padx=5, pady=10, sticky="ew")
+        pass_frame.grid_columnconfigure(0, weight=1)
+        
+        self.entry_obis_pass = ctk.CTkEntry(pass_frame, textvariable=self.obis_password_var, show="*")
+        self.entry_obis_pass.grid(row=0, column=0, sticky="ew")
+        
+        self.btn_toggle_obis_pass = ctk.CTkButton(pass_frame, text="👁", width=30, command=self.toggle_obis_pass_visibility)
+        self.btn_toggle_obis_pass.grid(row=0, column=1, padx=(5,0))
 
-        # 3. Bildirim Maili
-        ctk.CTkLabel(self.scrollable, text="Bildirim Maili:").grid(row=2, column=0, padx=5, pady=10, sticky="w")
-        self.entry_sender_email = ctk.CTkEntry(self.scrollable, textvariable=self.sender_email_var)
-        self.entry_sender_email.grid(row=2, column=1, padx=5, pady=10, sticky="ew")
-        self.create_info_label(self.scrollable, "Bildirimlerin gönderileceği ve\nalınacağı Gmail adresiniz.").grid(row=2, column=2, padx=5)
-
-        # 4. Gmail Uygulama Şifresi
-        ctk.CTkLabel(self.scrollable, text="Uygulama Şifresi:").grid(row=3, column=0, padx=5, pady=10, sticky="w")
-        self.entry_gmail_pass = ctk.CTkEntry(self.scrollable, textvariable=self.gmail_password_var, show="*")
-        self.entry_gmail_pass.grid(row=3, column=1, padx=5, pady=10, sticky="ew")
-        self.create_info_label(self.scrollable, "\"https://myaccount.google.com/apppasswords\"\nAdresinden uygulama şifrenizi almalısınız.").grid(row=3, column=2, padx=5)
-
-        # 5. Yarıyıl
-        ctk.CTkLabel(self.scrollable, text="Yarıyıl:").grid(row=4, column=0, padx=5, pady=10, sticky="w")
+        # 3. Yarıyıl
+        ctk.CTkLabel(self.scrollable, text="Yarıyıl:").grid(row=2, column=0, padx=5, pady=10, sticky="w")
         self.combo_semester = ctk.CTkComboBox(self.scrollable, variable=self.semester_var, 
                                               state="readonly",
                                               values=["25/26 Güz", "25/26 Bahar", "26/27 Güz", "26/27 Bahar"])
-        self.combo_semester.grid(row=4, column=1, padx=5, pady=10, sticky="ew")
-        self.create_info_label(self.scrollable, "Sitede bulunmayan yarıyıl seçildiğinde hata alırsınız!").grid(row=4, column=2, padx=5)
+        self.combo_semester.grid(row=2, column=1, padx=5, pady=10, sticky="ew")
 
-        # 6. Kontrol Süresi
-        ctk.CTkLabel(self.scrollable, text="Süre (dk):").grid(row=5, column=0, padx=5, pady=10, sticky="w")
+        # 4. Kontrol Süresi
+        ctk.CTkLabel(self.scrollable, text="Süre (dk):").grid(row=3, column=0, padx=5, pady=10, sticky="w")
         self.combo_interval = ctk.CTkComboBox(self.scrollable, variable=self.interval_var,
                                               state="readonly",
                                               values=["15", "20", "25", "30", "45", "60"])
-        self.combo_interval.grid(row=5, column=1, padx=5, pady=10, sticky="ew")
-        self.create_info_label(self.scrollable, "Kontrol sıklığı.").grid(row=5, column=2, padx=5)
+        self.combo_interval.grid(row=3, column=1, padx=5, pady=10, sticky="ew")
 
-        # 7. Tarayıcı
-        ctk.CTkLabel(self.scrollable, text="Tarayıcı:").grid(row=6, column=0, padx=5, pady=10, sticky="w")
-        self.combo_browser = ctk.CTkComboBox(self.scrollable, variable=self.browser_var,
+        # 5. Bildirim Tercihi
+        ctk.CTkLabel(self.scrollable, text="Bildirim Tercihi:", font=ctk.CTkFont(weight="bold")).grid(row=4, column=0, padx=5, pady=(20, 10), sticky="w")
+        
+        notify_frame = ctk.CTkFrame(self.scrollable, fg_color="transparent")
+        notify_frame.grid(row=4, column=1, columnspan=2, padx=20, pady=10, sticky="w")
+        
+        self.check_email = ctk.CTkSwitch(notify_frame, text="E-posta", variable=self.notify_email_var)
+        self.check_email.pack(side="left", padx=(0, 20))
+        
+        self.check_windows = ctk.CTkSwitch(notify_frame, text="Windows", variable=self.notify_windows_var)
+        self.check_windows.pack(side="left")
+
+        # === E-POSTA AYARLARI GROUP (Dinamik) ===
+        self.email_settings_frame = ctk.CTkFrame(self.scrollable)
+        self.email_settings_frame.grid(row=5, column=0, columnspan=3, padx=5, pady=10, sticky="ew")
+        self.email_settings_frame.grid_columnconfigure(1, weight=1)
+        
+        # 6. Bildirim Maili (Gmail)
+        ctk.CTkLabel(self.email_settings_frame, text="Gmail Adresi:").grid(row=0, column=0, padx=5, pady=10, sticky="w")
+        self.entry_sender_email = ctk.CTkEntry(self.email_settings_frame, textvariable=self.sender_email_var)
+        self.entry_sender_email.grid(row=0, column=1, padx=5, pady=10, sticky="ew")
+        
+        # 7. Gmail Uygulama Şifresi
+        ctk.CTkLabel(self.email_settings_frame, text="Uygulama Şifresi:").grid(row=1, column=0, padx=5, pady=10, sticky="w")
+        
+        gmail_pass_frame = ctk.CTkFrame(self.email_settings_frame, fg_color="transparent")
+        gmail_pass_frame.grid(row=1, column=1, padx=5, pady=10, sticky="ew")
+        gmail_pass_frame.grid_columnconfigure(0, weight=1)
+        
+        self.entry_gmail_pass = ctk.CTkEntry(gmail_pass_frame, textvariable=self.gmail_password_var, show="*")
+        self.entry_gmail_pass.grid(row=0, column=0, sticky="ew")
+        
+        self.btn_toggle_gmail_pass = ctk.CTkButton(gmail_pass_frame, text="👁", width=30, command=self.toggle_gmail_pass_visibility)
+        self.btn_toggle_gmail_pass.grid(row=0, column=1, padx=(5,5))
+        
+        self.btn_get_app_pass = ctk.CTkButton(gmail_pass_frame, text="Şifre Al", width=60, fg_color="#E0A800", text_color="black", hover_color="#C69500", command=self.open_app_password_url)
+        self.btn_get_app_pass.grid(row=0, column=2)
+
+        # 2FA Uyarısı
+        twofa_frame = ctk.CTkFrame(self.email_settings_frame, fg_color="transparent")
+        twofa_frame.grid(row=2, column=0, columnspan=3, pady=(0, 10), sticky="w")
+        
+        ctk.CTkLabel(twofa_frame, text="⚠️ Hesabınızın 2 adımlı doğrulaması açık olmalı!", text_color="orange", font=ctk.CTkFont(size=12)).pack(side="left", padx=(0, 10))
+        ctk.CTkButton(twofa_frame, text="Aktifleştir", width=80, height=24, fg_color="transparent", border_width=1, border_color="orange", text_color="orange", hover_color=("gray90", "gray20"), font=ctk.CTkFont(size=11), command=self.open_2fa_url).pack(side="left")
+
+        # === GELİŞMİŞ AYARLAR ===
+        self.btn_toggle_advanced = ctk.CTkButton(self.scrollable, text="▼ Gelişmiş Ayarlar", 
+                                                 fg_color="transparent", border_width=1, 
+                                                 text_color=("gray10", "gray90"), 
+                                                 command=self.toggle_advanced_settings)
+        self.btn_toggle_advanced.grid(row=6, column=0, columnspan=3, pady=(20, 5), sticky="ew")
+
+        self.advanced_frame = ctk.CTkFrame(self.scrollable, fg_color="transparent")
+        
+        self.advanced_frame.grid_columnconfigure(1, weight=1)
+        
+        # .Tarayıcı
+        ctk.CTkLabel(self.advanced_frame, text="Tarayıcı:").grid(row=0, column=0, padx=5, pady=10, sticky="w")
+        self.combo_browser = ctk.CTkComboBox(self.advanced_frame, variable=self.browser_var,
                                              state="readonly",
                                              values=["chromium", "firefox", "webkit"])
-        self.combo_browser.grid(row=6, column=1, padx=5, pady=10, sticky="ew")
+        self.combo_browser.grid(row=0, column=1, padx=5, pady=10, sticky="ew")
+        self.create_info_label(self.advanced_frame, "OBIS'e bağlanmak için kullanılacak tarayıcı motoru.\nChromium önerilir.").grid(row=0, column=2, padx=5)
 
         # Checkboxes
-        self.check_minimize = ctk.CTkCheckBox(self.scrollable, text="Simge durumunda çalıştır", variable=self.minimize_var)
-        self.check_minimize.grid(row=7, column=0, columnspan=2, padx=5, pady=5, sticky="w")
-        self.create_info_label(self.scrollable, "Pencere kapatıldığında simge durumunda küçültür.").grid(row=7, column=2, padx=5)
+        self.check_minimize = ctk.CTkCheckBox(self.advanced_frame, text="Simge durumunda çalıştır", variable=self.minimize_var)
+        self.check_minimize.grid(row=1, column=0, columnspan=2, padx=5, pady=5, sticky="w")
+        self.create_info_label(self.advanced_frame, "Program kapatıldığında sistem tepsisine küçültür\nve arka planda çalışır.").grid(row=1, column=2, padx=5)
 
-        self.check_autostart = ctk.CTkCheckBox(self.scrollable, text="Otomatik Başlat", variable=self.autostart_var, command=self.on_autostart_change)
-        self.check_autostart.grid(row=8, column=0, columnspan=2, padx=5, pady=5, sticky="w")
-        self.create_info_label(self.scrollable, "Windows oturumu açıldığında otomatik olarak sistem başlatılır.").grid(row=8, column=2, padx=5)
+        self.check_autostart = ctk.CTkCheckBox(self.advanced_frame, text="Otomatik Başlat", variable=self.autostart_var)
+        self.check_autostart.grid(row=2, column=0, columnspan=2, padx=5, pady=5, sticky="w")
+        self.create_info_label(self.advanced_frame, "Windows açıldığında uygulama otomatik başlar.").grid(row=2, column=2, padx=5)
 
-        self.check_stop_failure = ctk.CTkCheckBox(self.scrollable, text="3 Başarısız Girişte Durdur", variable=self.stop_failure_var)
-        self.check_stop_failure.grid(row=9, column=0, columnspan=2, padx=5, pady=5, sticky="w")
-        self.create_info_label(self.scrollable, "Art arda 3 başarısız girişte uygulama durdurulur.").grid(row=9, column=2, padx=5)
+        self.check_stop_failure = ctk.CTkCheckBox(self.advanced_frame, text="3 Başarısız Girişte Durdur", variable=self.stop_failure_var)
+        self.check_stop_failure.grid(row=3, column=0, columnspan=2, padx=5, pady=5, sticky="w")
+        self.create_info_label(self.advanced_frame, "Hesabınızın kilitlenmemesi için\nüst üste hatalı girişlerde programı durdurur.").grid(row=3, column=2, padx=5)
 
         # Kaydet Butonu
-        self.btn_save = ctk.CTkButton(self.scrollable, text="Ayarları Kaydet", command=self.save_settings, fg_color="green")
-        self.btn_save.grid(row=10, column=0, columnspan=3, padx=20, pady=20, sticky="ew")
+        self.btn_save = ctk.CTkButton(self.scrollable, text="Ayarları Kaydet", command=self.save_settings, fg_color="green", height=40)
+        self.btn_save.grid(row=8, column=0, columnspan=3, padx=20, pady=20, sticky="ew")
 
-        # .Test Bildirimi Butonu
-        self.btn_test_mail = ctk.CTkButton(self.scrollable, text="Test Bildirimi Gönder", command=self.send_test_mail, fg_color="gray")
-        self.btn_test_mail.grid(row=11, column=0, columnspan=3, padx=20, pady=(0, 20), sticky="ew")
+        # .Test Bildirimi
+        self.btn_test_mail = ctk.CTkButton(self.scrollable, text="Test Bildirimi Gönder", command=self.send_test_notification, fg_color="gray")
+        self.btn_test_mail.grid(row=9, column=0, columnspan=3, padx=20, pady=(0, 20), sticky="ew")
+
+    def toggle_obis_pass_visibility(self) -> None:
+        self.show_obis_pass = not self.show_obis_pass
+        self.entry_obis_pass.configure(show="" if self.show_obis_pass else "*")
+        self.btn_toggle_obis_pass.configure(text="🔒" if self.show_obis_pass else "👁")
+
+    def toggle_gmail_pass_visibility(self) -> None:
+        self.show_gmail_pass = not self.show_gmail_pass
+        self.entry_gmail_pass.configure(show="" if self.show_gmail_pass else "*")
+        self.btn_toggle_gmail_pass.configure(text="🔒" if self.show_gmail_pass else "👁")
+        
+    def open_app_password_url(self) -> None:
+        webbrowser.open("https://myaccount.google.com/apppasswords")
+
+    def open_2fa_url(self) -> None:
+        webbrowser.open("https://myaccount.google.com/signinoptions/two-step-verification")
+
+    def update_email_fields_visibility(self, *args: Any) -> None:
+        if self.notify_email_var.get():
+            self.email_settings_frame.grid(row=5, column=0, columnspan=3, padx=5, pady=10, sticky="ew")
+        else:
+            self.email_settings_frame.grid_forget()
+
+    def toggle_advanced_settings(self) -> None:
+        self.advanced_settings_visible = not self.advanced_settings_visible
+        if self.advanced_settings_visible:
+            self.advanced_frame.grid(row=7, column=0, columnspan=3, padx=5, pady=5, sticky="ew")
+            self.btn_toggle_advanced.configure(text="▲ Gelişmiş Ayarlar")
+        else:
+            self.advanced_frame.grid_forget()
+            self.btn_toggle_advanced.configure(text="▼ Gelişmiş Ayarlar")
 
     def create_control_widgets(self) -> None:
         """Kontrol paneli widget'larını oluşturur."""
@@ -286,9 +391,57 @@ class App(ctk.CTk):
         self.lbl_last_check = ctk.CTkLabel(self.info_frame, text="Son Kontrol: -", font=ctk.CTkFont(size=12, weight="bold"))
         self.lbl_last_check.pack(side="right") # Sağa yasla
 
-        # Footer (İmza)
-        footer_label = ctk.CTkLabel(self.control_frame, text="Başar Orhanbulucu - OBIS Notifier v2.0", text_color="gray60", font=("Arial", 10))
-        footer_label.pack(side="bottom", pady=5)
+        # Footer (Alt Bilgi ve Güncelleme)
+        footer_frame = ctk.CTkFrame(self.control_frame, fg_color="transparent")
+        footer_frame.pack(side="bottom", fill="x", pady=5)
+        
+        # Ortalamak için bir container
+        footer_container = ctk.CTkFrame(footer_frame, fg_color="transparent")
+        footer_container.pack(side="top", anchor="center")
+
+        # Versiyon ve İsim
+        version_text = f"Başar Orhanbulucu - OBIS Notifier {CURRENT_VERSION} "
+        self.footer_label = ctk.CTkLabel(footer_container, text=version_text, text_color="gray60", font=("Arial", 10))
+        self.footer_label.pack(side="left", padx=(0, 5))
+        
+        # Güncelleme Kontrol Butonu
+        self.btn_check_updates = ctk.CTkButton(footer_container, 
+                                               text="Güncellemeleri Kontrol Et", 
+                                               width=120, 
+                                               height=20,
+                                               font=ctk.CTkFont(size=10),
+                                               fg_color="transparent", 
+                                               border_width=1,
+                                               text_color=("gray60", "gray40"),
+                                               hover_color=("gray90", "gray20"),
+                                               command=lambda: self.check_updates(manual=True))
+        self.btn_check_updates.pack(side="left", padx=(5, 0))
+
+    def check_updates(self, manual: bool = True) -> None:
+        """Güncelleme kontrolünü başlatır."""
+        def run_check():
+            if manual:
+                 self.btn_check_updates.configure(state="disabled", text="Kontrol ediliyor...")
+            
+            update_info = check_for_updates(CURRENT_VERSION)
+            
+            if manual:
+                 self.btn_check_updates.configure(state="normal", text="Güncellemeleri Kontrol Et")
+
+            if update_info:
+                # Ana thread'de popup göster
+                self.after(0, lambda: self.show_update_popup(update_info))
+            elif manual:
+                # Manuel kontrolde güncelsek bilgi ver
+                self.after(0, lambda: messagebox.showinfo("Bilgi", "Uygulama güncel!"))
+        
+        threading.Thread(target=run_check, daemon=True).start()
+
+    def show_update_popup(self, update_info: dict) -> None:
+        """Güncelleme varsa kullanıcıya sorar."""
+        msg = f"Yeni bir sürüm mevcut: {update_info['version']}\n\n{update_info['body']}\n\nİndirmek ister misiniz?"
+        if messagebox.askyesno("Güncelleme Mevcut", msg):
+            webbrowser.open(update_info['url'])
 
     def setup_logging(self) -> None:
         """Global logging yapılandırmasını kurar."""
@@ -320,8 +473,14 @@ class App(ctk.CTk):
             try:
                 with open(SETTINGS_FILE, "r", encoding="utf-8") as f:
                     settings = json.load(f)
-                    self.obis_mail_var.set(settings.get("obis_mail", ""))
+                    self.student_id_var.set(settings.get("student_id", ""))
                     self.obis_password_var.set(settings.get("obis_password", ""))
+                    
+                    # Bildirim Yöntemleri
+                    methods = settings.get("notification_methods", ["email"])
+                    self.notify_email_var.set("email" in methods)
+                    self.notify_windows_var.set("windows" in methods)
+
                     self.sender_email_var.set(settings.get("sender_email", ""))
                     self.gmail_password_var.set(settings.get("gmail_app_password", ""))
                     self.semester_var.set(settings.get("semester", ""))
@@ -330,42 +489,47 @@ class App(ctk.CTk):
                     self.minimize_var.set(settings.get("minimize_to_tray", False))
                     self.autostart_var.set(settings.get("auto_start", False))
                     self.stop_failure_var.set(settings.get("stop_on_failures", True))
-                    
-                    if not self.obis_mail_var.get() or not self.obis_password_var.get() or not self.sender_email_var.get() or not self.gmail_password_var.get():
-                        messagebox.showwarning("Eksik Ayar", "Lütfen tüm ayarları eksiksiz doldurunuz.")
                         
             except Exception as e:
                 logging.error(f"Ayarlar yüklenemedi: {e}")
         else:
              messagebox.showinfo("Hoşgeldiniz", "Lütfen önce ayarları yapılandırıp 'Ayarları Kaydet' butonuna basınız.")
 
-    def on_autostart_change(self) -> None:
-        """Otomatik başlat onay kutusu değiştiğinde çağrılır."""
-        # İşlem "Ayarları Kaydet" butonuna basılınca yapılır.
-        pass 
+        self.update_email_fields_visibility()
 
     def save_settings(self) -> bool:
         """
         Ayarları doğrular ve dosyaya kaydeder.
-
-        Returns:
-            bool: Kayıt başarılı ise True.
         """
-        if not self.obis_mail_var.get() or not self.obis_password_var.get() or not self.sender_email_var.get() or not self.gmail_password_var.get() or not self.semester_var.get():
-             messagebox.showerror("Hata", "Tüm alanlar zorunludur!")
+        # 1. Genel Kontroller
+        student_id = self.student_id_var.get()
+        if not student_id or not student_id.isdigit():
+             messagebox.showerror("Hata", "Öğrenci numarası sadece rakamlardan oluşmalıdır!")
              return False
 
-        obis_mail = self.obis_mail_var.get()
-        if not obis_mail.endswith("@stu.adu.edu.tr"):
-            logging.error("HATA: OBIS Mail adresi @stu.adu.edu.tr ile bitmelidir!")
-            messagebox.showerror("Hata", "OBIS Mail adresi @stu.adu.edu.tr ile bitmelidir!")
+        if not self.obis_password_var.get() or not self.semester_var.get():
+             messagebox.showerror("Hata", "OBIS şifresi ve yarıyıl zorunludur!")
+             return False
+
+        # 2. Bildirim Kontrolleri
+        methods = []
+        if self.notify_email_var.get(): methods.append("email")
+        if self.notify_windows_var.get(): methods.append("windows")
+
+        if not methods:
+            messagebox.showerror("Hata", "En az bir bildirim yöntemi seçmelisiniz!")
             return False
-        
-        sender_email = self.sender_email_var.get()
-        if not sender_email.endswith("@gmail.com"):
-            logging.error("HATA: Bildirim Mail adresi @gmail.com ile bitmelidir!")
-            messagebox.showerror("Hata", "Bildirim Mail adresi @gmail.com ile bitmelidir!")
-            return False
+
+        # 3. Email Özel Kontrolleri
+        if "email" in methods:
+            sender_email = self.sender_email_var.get()
+            if not sender_email.endswith("@gmail.com"):
+                messagebox.showerror("Hata", "Bildirim Mail adresi @gmail.com ile bitmelidir!")
+                return False
+            
+            if not self.gmail_password_var.get():
+                messagebox.showerror("Hata", "Email bildirimi için Uygulama Şifresi zorunludur!")
+                return False
         
         try:
             interval = int(self.interval_var.get())
@@ -374,8 +538,9 @@ class App(ctk.CTk):
             return False
 
         settings = {
-            "obis_mail": obis_mail,
+            "student_id": student_id,
             "obis_password": self.obis_password_var.get(),
+            "notification_methods": methods,
             "sender_email": self.sender_email_var.get(),
             "gmail_app_password": self.gmail_password_var.get(),
             "semester": self.semester_var.get(),
@@ -385,6 +550,7 @@ class App(ctk.CTk):
             "auto_start": self.autostart_var.get(),
             "stop_on_failures": self.stop_failure_var.get()
         }
+        
         try:
             with open(SETTINGS_FILE, "w", encoding="utf-8") as f:
                 json.dump(settings, f, indent=4)
@@ -418,9 +584,14 @@ class App(ctk.CTk):
                 logging.error("Ayarlar doğrulanamadığı için sistem başlatılamadı!")
                 return                
 
+            methods = []
+            if self.notify_email_var.get(): methods.append("email")
+            if self.notify_windows_var.get(): methods.append("windows")
+
             settings = {
-                "obis_mail": self.obis_mail_var.get(),
+                "student_id": self.student_id_var.get(),
                 "obis_password": self.obis_password_var.get(),
+                "notification_methods": methods,
                 "sender_email": self.sender_email_var.get(),
                 "gmail_app_password": self.gmail_password_var.get(),
                 "semester": self.semester_var.get(),
@@ -429,7 +600,8 @@ class App(ctk.CTk):
                 "minimize_to_tray": self.minimize_var.get(),
                 "auto_start": self.autostart_var.get(),
                 "stop_on_failures": self.stop_failure_var.get(),
-                "status_callback": self.update_status_label
+                "status_callback": self.update_status_label,
+                "notification_callback": self.show_windows_notification
             }
 
             self.notifier = OBISNotifier(settings)
@@ -445,62 +617,101 @@ class App(ctk.CTk):
 
     def set_settings_state(self, state: str) -> None:
         """Ayar widget'larının durumunu (aktif/pasif) değiştirir."""
-        self.entry_obis_mail.configure(state=state)
+        self.entry_student_id.configure(state=state)
         self.entry_obis_pass.configure(state=state)
+        
+        self.check_email.configure(state=state)
+        self.check_windows.configure(state=state)
+        
         self.entry_sender_email.configure(state=state)
         self.entry_gmail_pass.configure(state=state)
+        
         self.combo_semester.configure(state="readonly" if state=="normal" else "disabled")
         self.combo_interval.configure(state="readonly" if state=="normal" else "disabled")
         self.combo_browser.configure(state="readonly" if state=="normal" else "disabled")
+        
         self.check_minimize.configure(state=state)
         self.check_autostart.configure(state=state)
         self.check_stop_failure.configure(state=state)
+        
         self.btn_save.configure(state=state)
         self.btn_test_mail.configure(state=state)
+
+    def restore_window_from_toast(self, args=None):
+        """Bildirime tıklandığında pencereyi güvenli şekilde açar."""
+        self.after(0, self.show_window)
+
+    def show_windows_notification(self, title: str, message: str) -> None:
+        """Windows Toast bildirimi gösterir (win11toast)."""
+        try:
+            # İkon yolunu bul
+            icon_path = ""
+            if getattr(sys, 'frozen', False):
+                 base_path = sys._MEIPASS
+            else:
+                 base_path = os.path.dirname(os.path.abspath(__file__))
+            
+            # src/images/icon.ico veya images/icon.ico durumuna göre
+            candidate = os.path.join(base_path, "images", "icon.ico")
+            if os.path.exists(candidate):
+                icon_path = candidate
+            
+            # win11toast ile kalıcı bildirim
+            # app_id: Bildirimin başlığında "Python" yerine görünmesi için
+            # icon: Bildirimin solunda görünmesi için
+            toast(title, message, 
+                  on_click=self.restore_window_from_toast, 
+                  app_id="OBIS.Notifier", 
+                  icon=icon_path)
+                  
+            logging.info(f"Windows bildirimi gönderildi: {title}")
+        except Exception as e:
+            logging.error(f"Windows bildirimi hatası: {e}")
+            if self.tray_icon:
+                self.tray_icon.notify(message, title)
 
     def update_status_label(self, text: str) -> None:
         """Sol alt köşedeki durum bilgisini günceller (Thread safe)."""
         self.after(0, lambda: self.lbl_last_check.configure(text=text))
 
-    def send_test_mail(self) -> None:
-        """Test maili gönderme işlemini ayrı bir thread'de başlatır."""
+    def send_test_notification(self) -> None:
+        """Test bildirimini ayrı bir thread'de başlatır."""
         if not self.save_settings():
             return
+        
+        methods = []
+        if self.notify_email_var.get(): methods.append("email")
+        if self.notify_windows_var.get(): methods.append("windows")
             
         settings = {
-                "obis_mail": self.obis_mail_var.get(),
+                "student_id": self.student_id_var.get(),
                 "obis_password": self.obis_password_var.get(),
+                "notification_methods": methods,
                 "semester": self.semester_var.get(),
                 "sender_email": self.sender_email_var.get(),
                 "gmail_app_password": self.gmail_password_var.get(),
                 "check_interval": 15,
                 "browser": "chromium",
-                "status_callback": None
+                "status_callback": None,
+                "notification_callback": self.show_windows_notification
         }
         
         def run_test():
             try:
                 self.btn_test_mail.configure(state="disabled", text="Gönderiliyor...")
-                temp_notifier = OBISNotifier(settings) # .type: ignore
-                temp_notifier.send_test_email()
-                messagebox.showinfo("Başarılı", "Test maili başarıyla gönderildi!")
+                temp_notifier = OBISNotifier(settings) # type: ignore
+                temp_notifier.send_test_notification()
+                messagebox.showinfo("Başarılı", "Test bildirimi gönderildi/tetiklendi!")
             except Exception as e:
-                messagebox.showerror("Hata", f"Test maili gönderilemedi:\n{e}")
+                messagebox.showerror("Hata", f"Test bildirimi hatası:\n{e}")
             finally:
                 self.after(0, lambda: self.btn_test_mail.configure(state="normal", text="Test Bildirimi Gönder"))
 
         threading.Thread(target=run_test, daemon=True).start()
 
-    def on_closing(self) -> None:
-        """Pencere kapatıldığında çağrılır."""
-        if self.minimize_var.get():
-            self.withdraw() # Pencereyi gizle
-            self.show_tray_icon()
-        else:
-            self.quit_app()
+    def init_tray_icon(self) -> None:
+        """Sistem tepsisi (Tray) ikonunu başlatır."""
 
-    def show_tray_icon(self) -> None:
-        """Sistem tepsisi (Tray) ikonunu oluşturur."""
         if self.icon_image:
             image = self.icon_image
         else:
@@ -509,15 +720,23 @@ class App(ctk.CTk):
             d = ImageDraw.Draw(image)
             d.rectangle([16,16,48,48], fill="white")
         
+        # Menü: Göster ve Çıkış
         menu = (pystray.MenuItem('Göster', self.show_window, default=True), pystray.MenuItem('Çıkış', self.quit_app))
+        
         self.tray_icon = pystray.Icon("ObisNotifier", image, "OBIS Notifier", menu)
         
+        # .Tray ikonunu ayrı bir thread'de çalıştır
         threading.Thread(target=self.tray_icon.run, daemon=True).start()
+
+    def on_closing(self) -> None:
+        """Pencere kapatıldığında çağrılır."""
+        if self.minimize_var.get():
+            self.withdraw() # Pencereyi gizle
+        else:
+            self.quit_app()
 
     def show_window(self, icon: Any = None, item: Any = None) -> None:
         """Gizlenen pencereyi tekrar gösterir."""
-        if self.tray_icon:
-            self.tray_icon.stop()
         self.deiconify()
         self.lift()
 
@@ -531,5 +750,11 @@ class App(ctk.CTk):
         sys.exit()
 
 if __name__ == "__main__":
+    try:
+        myappid = 'OBIS.Notifier'
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
+    except Exception as e:
+        pass
+        
     app = App()
     app.mainloop()

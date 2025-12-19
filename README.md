@@ -18,7 +18,8 @@ Sürekli siteye girip "Acaba notum açıklandı mı?" diye F5 yapmaktan yorulduy
 
 ### ✨ Özellikler
 - **🔄 Otomatik Takip:** Belirlediğiniz aralıklarla (örneğin her 20 dakikada bir) notlarınızı kontrol eder.
-- **📩 Anlık Bildirim:** Yeni bir not açıklandığında veya değiştiğinde (Final, Büt vb.) anında telefonunuza/bilgisayarınıza mail gelir.
+- **📩 Çoklu Bildirim:** Yeni bir not açıklandığında **E-posta** veya **Windows Bildirimi** (veya ikisi birden) alabilirsiniz.
+- **⬆️ Otomatik Güncelleme:** Uygulama açılışında yeni sürüm kontrolü yapar ve sizi uyarır.
 - **🖼️ Modern Arayüz:** Kullanıcı dostu, şık ve anlaşılır arayüz.
 - **🤖 Akıllı Kurulum:** Tek bir `EXE` dosyasıyla çalışır. Gerekli tarayıcı bileşenlerini otomatik kurar.
 - **🛡️ Güvenli:** Şifreniz sadece kendi bilgisayarınızda tutulur, dışarı aktarılmaz.
@@ -51,17 +52,24 @@ OBIS-Notifier/
 1. **İndirin:** [Releases](https://github.com/basarob/OBIS-Notifier/releases) sayfasından en güncel `OBISNotifier.exe` dosyasını indirin.
 2. **Çalıştırın:** İndirdiğiniz dosyayı çift tıklayarak açın. (Gerekirse yönetici olarak çalıştırın).
 3. **Ayarlayın:**
-   - **OBIS Mail:** Öğrenci mail adresiniz (`@stu.adu.edu.tr`).
+   - **Öğrenci No:** Okul numaranız (Sistem `@stu.adu.edu.tr` otomatik ekler).
    - **OBIS Şifre:** Okul şifreniz.
-   - **Gmail:** Bildirimlerin geleceği Gmail adresiniz.
+   - **Bildirim Tercihi:** E-posta, Windows veya ikisini seçin.
+   - **Gmail:** (E-posta seçiliyse) Bildirimlerin geleceği Gmail adresiniz.
    - **Uygulama Şifresi:** Gmail güvenlik ayarlarından alacağınız [Uygulama Şifresi](https://myaccount.google.com/apppasswords).
 4. **Başlatın:** "Sistemi Başlat" butonuna basın ve arkanıza yaslanın!
 
+> [!WARNING]
+> **Windows Uyarısı Hakkında:** Uygulama dijital imzaya sahip olmadığı için ilk çalıştırmada **Windows SmartScreen** uyarısı ("Windows kişisel bilgisayarınızı korudu") alabilirsiniz. Bu beklenen bir durumdur.
+>
+> Devam etmek için: **Ek Bilgi (More Info) -> Yine de Çalıştır (Run Anyway)** butonuna tıklayınız.
+
+
 ### 📸 Ekran Görüntüleri / Screenshots
 
-| Ana Ekran | Ayarlar | Bildirim Örneği |
+| Ana Ekran | E-posta Bildirim | Windows Bildirim |
 |:---:|:---:|:---:|
-| <img src="src/images/screenshot_main.png" width="250"> | <img src="src/images/screenshot_settings.png" width="250"> | <img src="src/images/screenshot_notification.png" width="250"> |
+| <img src="src/images/screenshot_main.png" width="250"> | <img src="src/images/screenshot_mail_notification.png" width="250"> | <img src="src/images/screenshot_win_notification.png" width="250"> |
 
 ---
 
@@ -74,7 +82,8 @@ Stop refreshing the page every 5 minutes! Let OBIS Notifier handle the stress fo
 
 ### ✨ Features
 - **🔄 Auto-Check:** Monitors your grades at set intervals (e.g., every 20 mins).
-- **📩 Instant Alerts:** Sends an email notification immediately when a grade is announced or changed.
+- **📩 Multi-Notify:** Get alerts via **Email**, **Windows Notification**, or both when a grade is announced.
+- **⬆️ Auto-Updater:** Automatically checks for new versions on startup and notifies you.
 - **🖼️ Modern UI:** Sleek and user-friendly interface powered by CustomTkinter.
 - **🤖 Smart Setup:** Runs as a single portable `EXE`. Automatically installs necessary browser components.
 - **🛡️ Secure:** Your credentials are stored locally and never shared.
@@ -106,11 +115,18 @@ OBIS-Notifier/
 1. **Download:** Get the latest `OBISNotifier.exe` from the [Releases](https://github.com/basarob/OBIS-Notifier/releases) page.
 2. **Run:** Double-click the downloaded file.
 3. **Configure:**
-   - **OBIS Mail:** Your student email.
+   - **Student ID:** Your university ID (`@stu.adu.edu.tr` is added automatically).
    - **OBIS Password:** Your system password.
-   - **Gmail:** The email address to receive alerts.
+   - **Notify Preference:** Choose Email, Windows, or both.
+   - **Gmail:** (If Email selected) The address to receive alerts.
    - **App Password:** Your Google [App Password](https://myaccount.google.com/apppasswords).
 4. **Start:** Click "Start System" and relax!
+
+> [!WARNING]
+> **About Windows Warning:** Since the application is not digitally signed, you may see a **Windows SmartScreen** warning ("Windows protected your PC") on the first run. This is expected behavior.
+>
+> To proceed: Click **More Info -> Run Anyway**.
+
 
 ---
 

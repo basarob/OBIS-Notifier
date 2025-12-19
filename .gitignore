@@ -21,3 +21,6 @@ ms-playwright/
 # --- IDE ---
 .vscode/
 .idea/
+
+# --- Gemini ---
+gemini.md

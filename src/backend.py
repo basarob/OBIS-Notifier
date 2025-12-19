@@ -9,11 +9,48 @@ from datetime import datetime
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from typing import Any, Dict, List, Optional, Tuple, Union
-
 import schedule
+import requests
+from packaging import version
 from bs4 import BeautifulSoup
 from playwright.sync_api import sync_playwright, Browser, Page, Playwright
 
+CURRENT_VERSION = "v2.1"
+
+def check_for_updates(current_version_str: str, repo_owner: str = "basarob", repo_name: str = "OBIS-Notifier") -> Optional[Dict[str, str]]:
+    """GitHub releases üzerinden güncelleme kontrolü yapar."""
+    try:
+        url = f"https://api.github.com/repos/{repo_owner}/{repo_name}/releases/latest"
+        response = requests.get(url, timeout=5)
+        response.raise_for_status()
+        
+        latest_release = response.json()
+        latest_tag = latest_release.get("tag_name", "v0.0.0")
+        
+        # 'v' harfini temizle ve karşılaştır
+        try:
+            v_current = version.parse(current_version_str.lstrip("v"))
+            v_latest = version.parse(latest_tag.lstrip("v"))
+            
+            if v_latest > v_current:
+                return {
+                    "version": latest_tag,
+                    "url": latest_release.get("html_url"),
+                    "body": latest_release.get("body", "")
+                }
+        except Exception:
+            # Versiyon parse edilemezse, string olarak karşılaştır
+            if latest_tag != current_version_str:
+                 return {
+                    "version": latest_tag,
+                    "url": latest_release.get("html_url"),
+                    "body": latest_release.get("body", "")
+                }
+
+    except Exception as e:
+        logging.error(f"Güncelleme kontrolü başarısız: {e}")
+    
+    return None
 
 def set_auto_start(enable: bool = True) -> bool:
     """
@@ -78,30 +115,31 @@ def set_auto_start(enable: bool = True) -> bool:
         logging.error(f"Otomatik başlatma ayarı yapılamadı: {e}")
         return False
 
-
-def get_base_path() -> str:
+def get_user_data_dir() -> str:
     """
-    Çalışma dizinini belirler. Eğer uygulama .exe olarak dondurulmuşsa (frozen) geçici dizini,
-    değilse dosyanın bulunduğu dizini döndürür.
-
-    Returns:
-        str: Temel dosya yolu.
+    Kullanıcı veri dizinini (AppData/Local/OBISNotifier) döndürür.
+    Klasör yoksa oluşturur.
     """
-    if getattr(sys, 'frozen', False):
-        return sys._MEIPASS
-    return os.path.dirname(os.path.abspath(__file__))
-
+    app_data = os.getenv('LOCALAPPDATA')
+    if not app_data:
+        app_data = os.getenv('APPDATA') # Fallback
+        
+    data_dir = os.path.join(app_data, "OBISNotifier")
+    if not os.path.exists(data_dir):
+        os.makedirs(data_dir)
+    return data_dir
 
 # Loglama ayarlarının yapılması
+log_file_path = os.path.join(get_user_data_dir(), 'obis_notifier.log')
+
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler('obis_notifier.log', encoding='utf-8'),
+        logging.FileHandler(log_file_path, encoding='utf-8'),
         logging.StreamHandler()
     ]
 )
-
 
 def ensure_browsers_installed() -> bool:
     """
@@ -152,7 +190,6 @@ def ensure_browsers_installed() -> bool:
         logging.error(f"Tarayıcı kurulumu sırasında kritik hata: {e}")
         return False
 
-
 class OBISNotifier:
     """
     OBIS sistemini izleyen, notları çeken ve değişiklik durumunda bildirim gönderen ana sınıf.
@@ -167,13 +204,19 @@ class OBISNotifier:
         """
         self.settings = settings
         
-        self.email: str = settings.get("obis_mail", "")
+        # Giriş Bilgileri
+        self.student_id: str = settings.get("student_id", "")
         self.password: str = settings.get("obis_password", "")
+        self.email: str = f"{self.student_id}@stu.adu.edu.tr"
+        
+        # Bildirim Ayarları
+        self.notification_methods: List[str] = settings.get("notification_methods", ["email"])
         
         self.gonderen_email: str = settings.get("sender_email", "")
         self.gonderen_password: str = settings.get("gmail_app_password", "")
         self.alici_email: str = self.gonderen_email
         
+        # Diğer Ayarlar
         self.yariyil: str = settings.get("semester", "")
         self.sure: int = int(settings.get("check_interval", 20))
         self.tarayici: str = settings.get("browser", "chromium")
@@ -181,33 +224,23 @@ class OBISNotifier:
         self.auto_start: bool = settings.get("auto_start", False)
         self.stop_on_failures: bool = settings.get("stop_on_failures", True)
 
-        self.gorunurluk: bool = True # Tarayıcının görünür olup olmadığı (True = Headless)
+        self.gorunurluk: bool = True # .Tarayıcının görünür olup olmadığı (True = Headless)
         
         self.browser: Optional[Browser] = None
         self.page: Optional[Page] = None
         self.playwright: Optional[Playwright] = None
 
-        self.grades_file: str = "grades_data.json"
+        self.grades_file: str = os.path.join(get_user_data_dir(), "grades_data.json")
         self.running: bool = True
 
-        self.consecutive_failures: int = 0
-        self.check_count: int = 1
+        self.consecutive_failures: int = 0  # Başarısız kontrollerin sayısını tutar
+        self.check_count: int = 1  # Kontrol sayısını tutar
         
+        # Callbacks
         self.status_callback = settings.get("status_callback", None)
+        self.notification_callback = settings.get("notification_callback", None) # Windows bildirimi için GUI callback
 
         self.validate_config()
-
-    def send_test_email(self) -> None:
-        """
-        Ayarların doğruluğunu test etmek için kullanıcıya bir test e-postası gönderir.
-        """
-        logging.info("Test maili gönderiliyor...")
-        subject = "🧪 OBIS Notifier - Test Bildirimi"
-        body = (f"Merhaba,\n\n"
-                f"Bu bir test e-postasıdır. Ayarlarınız doğru yapılandırılmış görünüyor.\n\n"
-                f"⏰ {datetime.now().strftime('%d.%m.%Y %H:%M')}")
-        self.send_email(subject, body)
-        logging.info("Test maili başarıyla gönderildi.")
 
     def validate_config(self) -> None:
         """
@@ -216,20 +249,16 @@ class OBISNotifier:
         """
         eksik_alanlar = []
 
-        if not self.email: eksik_alanlar.append("obis_mail")
+        if not self.student_id: eksik_alanlar.append("student_id")
         if not self.password: eksik_alanlar.append("obis_password")
         if not self.yariyil: eksik_alanlar.append("semester")
-        if not self.gonderen_email: eksik_alanlar.append("sender_email")
-        if not self.gonderen_password: eksik_alanlar.append("gmail_app_password")
-        if not self.tarayici: eksik_alanlar.append("browser")
+        
+        if "email" in self.notification_methods:
+            if not self.gonderen_email: eksik_alanlar.append("sender_email")
+            if not self.gonderen_password: eksik_alanlar.append("gmail_app_password")
 
         if eksik_alanlar:
             logging.error(f"Ayarlarda eksik alan(lar) var: {', '.join(eksik_alanlar)}")
-
-    def stop_monitoring(self) -> None:
-        """İzleme işlemini ve döngüyü durdurur."""
-        logging.info("İzleme durduruluyor...")
-        self.running = False
 
     def setup_browser(self) -> None:
         """
@@ -254,7 +283,7 @@ class OBISNotifier:
 
         self.page = self.browser.new_page()
         self.page.set_viewport_size({"width": 1280, "height": 720})
-    
+
     def login(self) -> bool:
         """
         OBİS sistemine giriş yapar.
@@ -297,7 +326,7 @@ class OBISNotifier:
         except Exception as e:
             logging.error(f"Giriş sırasında hata: {str(e)}")
             return False
-    
+
     def check_login_success(self) -> bool:
         """
         Sayfa içeriğini kontrol ederek girişin başarılı olup olmadığını doğrular.
@@ -322,6 +351,11 @@ class OBISNotifier:
         except Exception as e:
             logging.error(f"Giriş kontrolü hatası: {str(e)}")
             return False
+    
+    def stop_monitoring(self) -> None:
+        """İzleme işlemini ve döngüyü durdurur."""
+        logging.info("İzleme durduruluyor...")
+        self.running = False
     
     def navigate_to_grades(self) -> bool:
         """
@@ -370,7 +404,7 @@ class OBISNotifier:
         except Exception as e:
             logging.error(f"Notlar sayfasına geçişte hata: {str(e)}")
             return False
-        
+    
     def get_grades(self) -> Optional[List[Dict[str, str]]]:
         """
         Sayfadaki HTML tablosunu ayrıştırarak notları çeker.
@@ -424,7 +458,7 @@ class OBISNotifier:
         except Exception as e:
             logging.error(f"Notlar çekilirken hata: {str(e)}")
             return None
-        
+    
     def load_previous_grades(self) -> Optional[Dict[str, Any]]:
         """
         Daha önce kaydedilmiş notları dosyadan okur.
@@ -515,9 +549,9 @@ class OBISNotifier:
         
         return changes, "Değişiklik bulundu" if changes else "Değişiklik yok"
     
-    def send_email_notification(self, changes: List[Dict[str, Any]]) -> None:
+    def send_notification(self, changes: List[Dict[str, Any]]) -> None:
         """
-        Değişiklikleri e-posta ile bildirir.
+        Değişiklikleri seçilen yöntemlerle (Mail/Windows) bildirir.
 
         Args:
             changes (List[Dict]): Değişiklik listesi.
@@ -525,15 +559,15 @@ class OBISNotifier:
         if not changes:
             return
         
-        logging.info("E-mail bildirimi gönderiliyor...")
+        logging.info("Bildirimler gönderiliyor...")
         
         for change in changes:
             ders_adi = change['ders']
-            subject = f"📚 OBIS Not Güncellemesi - {ders_adi}"
-            body = f"📚 {ders_adi}\n\n"
+            subject = f"📚 {ders_adi}"
             
             yeni = change['yeni'] # .type: ignore
             
+            body = f"📚 {ders_adi}\n\n"
             if change['eski']:
                 body += "🔄 Güncellendi:\n"
             else:
@@ -542,15 +576,25 @@ class OBISNotifier:
             body += f"• Sınavlar: {yeni['Sınavlar']}\n"
             body += f"• Harf Notu: {yeni['Harf Notu']}\n"
             body += f"• Sonuç: {yeni['Sonuç']}\n"
-            
             body += f"\n⏰ {datetime.now().strftime('%d.%m.%Y %H:%M')}"
             
-            try:
-                self.send_email(subject, body)
-                logging.info(f"E-posta gönderildi: {ders_adi}")
-
-            except Exception as e:
-                logging.error(f"E-mail bildirimi hatası: {str(e)}")
+            # 1. E-posta Bildirimi
+            if "email" in self.notification_methods and self.gonderen_email:
+                try:
+                    email_subject = f"OBIS: {ders_adi}"
+                    self.send_email(email_subject, body)
+                    logging.info(f"E-posta gönderildi: {ders_adi}")
+                except Exception as e:
+                    logging.error(f"E-mail bildirimi hatası: {str(e)}")
+            
+            # 2. Windows Bildirimi (Tray Icon üzerinden)
+            if "windows" in self.notification_methods and self.notification_callback:
+                try:
+                    summary_text = f"Sınavlar: {yeni['Sınavlar']}\nHarf: {yeni['Harf Notu']} | Sonuç: {yeni['Sonuç']}"
+                    self.notification_callback(subject, summary_text)
+                    logging.info(f"Windows bildirimi tetiklendi: {ders_adi}")
+                except Exception as e:
+                    logging.error(f"Windows bildirimi hatası: {str(e)}")
 
     def send_email(self, subject: str, body: str) -> None:
         """
@@ -574,6 +618,25 @@ class OBISNotifier:
         except Exception as e:
             logging.error(f"Mail gönderme hatası: {e}")
             raise e
+    
+    def send_test_notification(self) -> None:
+        """
+        Ayarların doğruluğunu test etmek için kullanıcıya test bildirimi gönderir.
+        """
+        logging.info("Test bildirimi gönderiliyor...")
+        subject = "🧪 OBIS Notifier - Test"
+        body = (f"Merhaba,\n\n"
+                f"Bu bir test bildirimidir. Ayarlarınız doğru yapılandırılmış görünüyor.\n\n"
+                f"⏰ {datetime.now().strftime('%d.%m.%Y %H:%M')}")
+        
+        if "email" in self.notification_methods:
+            self.send_email(subject, body)
+            
+        if "windows" in self.notification_methods:
+             if self.notification_callback:
+                 self.notification_callback("Test Bildirimi", "Sistem başarıyla çalışıyor!")
+
+        logging.info("Test bildirimi tamamlandı.")
 
     def send_failure_notification(self) -> None:
         """
@@ -623,7 +686,7 @@ class OBISNotifier:
             self.setup_browser()
             
             if self.login():
-                self.consecutive_failures = 0 # Başarılı giriş
+                self.consecutive_failures = 0 # Başarılı girişte ardışık başarısız sayısını sıfırlar
                 
                 if self.navigate_to_grades():
                     new_grades = self.get_grades()
@@ -633,7 +696,7 @@ class OBISNotifier:
                         changes, status = self.compare_grades(old_grades_data, new_grades)
                         
                         if changes:
-                            self.send_email_notification(changes)
+                            self.send_notification(changes)
                         else:
                             logging.info("Herhangi bir değişiklik bulunamadı.")
                         
