@@ -47,7 +47,7 @@ echo.
 echo [5/5] Uygulama (EXE) olusturuluyor...
 echo Bu islem biraz zaman alabilir...
 if not exist "dist" mkdir "dist"
-pyinstaller --noconsole --onefile --name "OBISNotifier" --distpath "dist" --workpath "build" --icon="src/images/icon.ico" --add-data "src/images;images" --hidden-import "pystray" --hidden-import "PIL" --hidden-import "win11toast" --hidden-import "requests" --hidden-import "packaging" --paths="src" src/main_gui.py
+pyinstaller --noconsole --onefile --name "OBISNotifier" --distpath "dist" --workpath "build" --icon="src/images/icon.ico" --add-data "src/images;images" --hidden-import "pystray" --hidden-import "PIL" --hidden-import "win11toast" --hidden-import "requests" --hidden-import "packaging" --paths="src" src/main.py
 
 IF %ERRORLEVEL% EQU 0 (
     echo.
@@ -55,11 +55,11 @@ IF %ERRORLEVEL% EQU 0 (
     echo                           KURULUM TAMAMLANDI!
     echo ==============================================================================
     echo 1. "dist" klasoru icindeki "OBISNotifier.exe" dosyasini kullanabilirsiniz.
-    echo 2. Veya dogrudan "python src/main_gui.py" komutu ile kodu calistirabilirsiniz.
+    echo 2. Veya dogrudan "python src/main.py" komutu ile kodu calistirabilirsiniz.
     echo ==============================================================================
 ) ELSE (
     echo [UYARI] EXE olusturulamadi, ancak kutuphaneler yuklendi.
-    echo "python src/main_gui.py" yazarak uygulamayi calistirabilirsiniz.
+    echo "python src/main.py" yazarak uygulamayi calistirabilirsiniz.
 )
 echo.
 pause
