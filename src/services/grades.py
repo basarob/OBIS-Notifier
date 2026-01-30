@@ -6,7 +6,7 @@ eski notlarla karşılaştırarak değişiklikleri tespit eder.
 import logging
 from typing import List, Dict, Tuple, Optional, Any
 from bs4 import BeautifulSoup
-from ..config import OBISSelectors
+from config import OBISSelectors
 
 class GradeService:
     """HTML Parsing ve Not Karşılaştırma işlemlerini yürütür."""

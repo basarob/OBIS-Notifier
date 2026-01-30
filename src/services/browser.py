@@ -12,7 +12,7 @@ from typing import Optional, Dict
 from playwright.sync_api import sync_playwright, Browser, Page, Playwright
 
 # Konfigürasyon ve Selector importu (Relative import)
-from ..config import OBISSelectors
+from config import OBISSelectors
 
 def ensure_browsers_installed() -> bool:
     """

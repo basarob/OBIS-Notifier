@@ -13,7 +13,7 @@ from typing import Dict, Any, List, Optional
 
 # Kendi modüllerimiz
 from ..components.tooltip import ToolTip
-from ...utils.system import set_auto_start, get_user_data_dir
+from utils.system import set_auto_start, get_user_data_dir
 
 SETTINGS_FILE = os.path.join(get_user_data_dir(), "settings.json")
 
@@ -131,7 +131,7 @@ class SettingsPanel(ctk.CTkScrollableFrame):
 
     def _create_email_fields(self) -> None:
         """E-posta ayarları (dinamik) widget'larını oluşturur."""
-        self.email_settings_frame = ctk.CTkFrame(self)
+        self.email_settings_frame = ctk.CTkFrame(self, fg_color=("gray90", "gray15"))
         self.email_settings_frame.grid_columnconfigure(1, weight=1)
         # Pack edilmiyor, trace_add edecek
 
@@ -155,8 +155,11 @@ class SettingsPanel(ctk.CTkScrollableFrame):
                       command=lambda: webbrowser.open("https://myaccount.google.com/apppasswords")).grid(row=0, column=2)
 
         twofa_frame = ctk.CTkFrame(self.email_settings_frame, fg_color="transparent")
-        twofa_frame.grid(row=2, column=0, columnspan=2, pady=(0, 10), sticky="w")
+        twofa_frame.grid(row=2, column=0, columnspan=2, pady=(0, 10))
         ctk.CTkLabel(twofa_frame, text="⚠️ 2 Adımlı doğrulama açık olmalı!", text_color="orange", font=ctk.CTkFont(size=12)).pack(side="left", padx=5)
+        
+        ctk.CTkButton(twofa_frame, text="Aktifleştir", width=70, fg_color="transparent", border_width=1, border_color="#E0A800", text_color="orange", hover_color="#333",
+                      command=lambda: webbrowser.open("https://myaccount.google.com/signinoptions/two-step-verification")).pack(side="left", padx=5)
 
     def _create_advanced_fields(self) -> None:
         """ Gelişmiş ayarlar widget'larını oluşturur."""
@@ -196,7 +199,7 @@ class SettingsPanel(ctk.CTkScrollableFrame):
         """ Gelişmiş ayarları göster/gizle """
         self.advanced_settings_visible = not self.advanced_settings_visible
         if self.advanced_settings_visible:
-            self.advanced_frame.pack(fill="x", padx=5, pady=5)
+            self.advanced_frame.pack(fill="x", padx=5, pady=5, after=self.btn_toggle_advanced)
             self.btn_toggle_advanced.configure(text="▲ Gelişmiş Ayarlar")
         else:
             self.advanced_frame.pack_forget()
@@ -205,7 +208,7 @@ class SettingsPanel(ctk.CTkScrollableFrame):
     def update_email_fields_visibility(self, *args: Any) -> None:
         """ E-posta ayarlarını gizleme/kaydetme """
         if self.notify_email_var.get():
-            self.email_settings_frame.pack(fill="x", padx=5, pady=10)
+            self.email_settings_frame.pack(fill="x", padx=5, pady=10, before=self.btn_toggle_advanced)
         else:
             self.email_settings_frame.pack_forget()
 

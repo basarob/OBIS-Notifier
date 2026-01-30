@@ -8,7 +8,7 @@ import ctypes
 import logging
 import customtkinter as ctk
 from tkinter import messagebox
-from typing import Optional
+from typing import Optional, Any
 from win11toast import toast
 import sys
 
@@ -20,10 +20,10 @@ from .assets import AssetManager
 from .components.logger import setup_logging_to_queue
 
 # Backend ve Utils
-from ..core.notifier import OBISNotifier
-from ..utils.updater import check_for_updates
-from ..services.browser import ensure_browsers_installed
-from ..config import CURRENT_VERSION
+from core.notifier import OBISNotifier
+from utils.updater import check_for_updates
+from services.browser import ensure_browsers_installed
+from config import CURRENT_VERSION
 
 class App(ctk.CTk):
     """OBIS Notifier Ana Uygulama Sınıfı"""

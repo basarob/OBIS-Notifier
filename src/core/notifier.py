@@ -11,11 +11,11 @@ from typing import Dict, Any, Optional
 from datetime import datetime
 
 # Servisler
-from ..services.browser import BrowserService
-from ..services.grades import GradeService
-from ..services.notification import NotificationService
-from ..services.storage import GradeStorageService
-from ..utils.system import get_user_data_dir
+from services.browser import BrowserService
+from services.grades import GradeService
+from services.notification import NotificationService
+from services.storage import GradeStorageService
+from utils.system import get_user_data_dir
 
 class OBISNotifier:
     """

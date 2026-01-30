@@ -4,7 +4,7 @@ versiyon bilgisini ve HTML/CSS Selector'ları barındırır.
 """
 
 # !Uygulama Versiyonu
-CURRENT_VERSION = "v2.1"
+CURRENT_VERSION = "v2.2"
 
 class OBISSelectors:
     """
