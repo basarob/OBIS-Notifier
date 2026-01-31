@@ -106,7 +106,7 @@ class SettingsPanel(ctk.CTkScrollableFrame):
         ctk.CTkLabel(frame, text="Yarıyıl:").grid(row=2, column=0, padx=5, pady=10, sticky="w")
         self.combo_semester = ctk.CTkComboBox(frame, variable=self.semester_var, 
                                               state="readonly",
-                                              values=["25/26 Güz", "25/26 Bahar", "26/27 Güz", "26/27 Bahar"])
+                                              values=["25/26 Bahar", "26/27 Güz", "26/27 Bahar", "27/28 Güz"])
         self.combo_semester.grid(row=2, column=1, padx=5, pady=10, sticky="ew")
         
         # 4. Süre
