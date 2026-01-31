@@ -6,6 +6,10 @@ Sadece UI uygulamasını (App) başlatır.
 import sys
 sys.dont_write_bytecode = True  # __pycache__ klasörünü oluşturmaz
 
+import os
+if getattr(sys, 'frozen', False):
+     os.environ["PLAYWRIGHT_BROWSERS_PATH"] = "0"
+
 import ctypes   # Windows AppID için
 from ui.app import App  # Arayüzü import
 

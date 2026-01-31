@@ -31,7 +31,9 @@ class OBISSelectors:
     SEMESTER_COMBOBOX_ARROW = '#ctl00_ctl00_cphMain_cphContent_cmbDonem_Arrow'
     # Dropdown list
     SEMESTER_DROPDOWN_LIST = '#ctl00_ctl00_cphMain_cphContent_cmbDonem_DropDown'
-    
+    # Dönem Seçenekleri
+    SEMESTER_OPTIONS = ["25/26 Bahar", "26/27 Güz", "26/27 Bahar", "27/28 Güz"]
+
     # !--- Not Tablosu ---
     # .Tablonun ham ID'si (BeautifulSoup için)
     GRADES_TABLE_ID = "ctl00_ctl00_cphMain_cphContent_rgridOgrenciDersNot_ctl00"

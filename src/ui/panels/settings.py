@@ -11,6 +11,8 @@ import customtkinter as ctk
 from tkinter import messagebox
 from typing import Dict, Any, List, Optional
 
+from config import OBISSelectors
+
 # Kendi modüllerimiz
 from ..components.tooltip import ToolTip
 from utils.system import set_auto_start, get_user_data_dir
@@ -106,7 +108,7 @@ class SettingsPanel(ctk.CTkScrollableFrame):
         ctk.CTkLabel(frame, text="Yarıyıl:").grid(row=2, column=0, padx=5, pady=10, sticky="w")
         self.combo_semester = ctk.CTkComboBox(frame, variable=self.semester_var, 
                                               state="readonly",
-                                              values=["25/26 Bahar", "26/27 Güz", "26/27 Bahar", "27/28 Güz"])
+                                              values=OBISSelectors.SEMESTER_OPTIONS)
         self.combo_semester.grid(row=2, column=1, padx=5, pady=10, sticky="ew")
         
         # 4. Süre
@@ -227,7 +229,17 @@ class SettingsPanel(ctk.CTkScrollableFrame):
 
                     self.sender_email_var.set(settings.get("sender_email", ""))
                     self.gmail_password_var.set(settings.get("gmail_app_password", ""))
-                    self.semester_var.set(settings.get("semester", ""))
+                    
+                    # Yarıyıl Kontrolü (Migration Fix)
+                    loaded_semester = settings.get("semester", "")
+                    if loaded_semester in OBISSelectors.SEMESTER_OPTIONS:
+                        self.semester_var.set(loaded_semester)
+                    else:
+                        # Eğer eski sürümden kalma geçersiz bir dönem geldiyse, en güncelini (ilkini) seç.
+                        default_semester = OBISSelectors.SEMESTER_OPTIONS[0]
+                        logging.warning(f"Geçersiz dönem algılandı: '{loaded_semester}'. Varsayılan ({default_semester}) seçiliyor.")
+                        self.semester_var.set(default_semester)
+
                     self.interval_var.set(str(settings.get("check_interval", 20)))
                     self.browser_var.set(settings.get("browser", "chromium"))
                     self.minimize_var.set(settings.get("minimize_to_tray", False))
@@ -275,7 +287,6 @@ class SettingsPanel(ctk.CTkScrollableFrame):
             set_auto_start(self.autostart_var.get())
             
             logging.info("Ayarlar kaydedildi.")
-            messagebox.showinfo("Başarılı", "Ayarlar kaydedildi.")
             return True
         except Exception as e:
             logging.error(f"Kayıt hatası: {e}")
