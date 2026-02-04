@@ -1,3 +1,5 @@
+## pyqt6 yapısına göre daha sonradan güncellenecek
+
 # 🎓 OBIS Notifier
 
 <img src="src/images/banner_placeholder.png" width="100%">

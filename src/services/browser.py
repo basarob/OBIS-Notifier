@@ -147,7 +147,7 @@ class BrowserService:
             if not self.page: return False
             content = self.page.content()
             # Başarılı girişte görünen menüler
-            return "Ders Kayıt İşlemleri" in content or "Not Sınav İşlemleri" in content
+            return "Ders Kayıt İşlemleri" in content and "Not Sınav İşlemleri" in content and "Açık Rıza İşlemleri" in content
         except Exception:
             return False
 

@@ -1,0 +1,34 @@
+/* 
+   BU DOSYA: Uygulamanın CSS benzeri stil tanımları.
+*/
+
+/* Genel Pencere Ayarları */
+QWidget {
+    font-family: "Segoe UI", "Inter", sans-serif;
+    outline: none; /* Focus outline kaldır */
+}
+
+/* Ana Pencere Arka Planı */
+QMainWindow, #centralWidget {
+    background-color: #F9FAFB;
+}
+
+/* Scrollbar Özelleştirme */
+QScrollBar:vertical {
+    border: none;
+    background: #F3F4F6;
+    width: 8px;
+    margin: 0px 0px 0px 0px;
+    border-radius: 4px;
+}
+
+QScrollBar::handle:vertical {
+    background: #D1D5DB;
+    min-height: 20px;
+    border-radius: 4px;
+}
+
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+    border: none;
+    background: none;
+}
