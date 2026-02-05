@@ -107,7 +107,33 @@ class ProfileView(QWidget):
         layout.setSpacing(0)
         layout.setContentsMargins(25, 20, 25, 20)
         
-        # --- Avatar Alanı ---
+        # 1. Avatar
+        avatar = self._create_avatar_section()
+        
+        # 2. Üye Bilgileri
+        self._create_info_section()
+        
+        # 3. Butonlar
+        self._create_actions_section()
+        
+        layout.addWidget(avatar, 0, Qt.AlignmentFlag.AlignCenter)
+        layout.addSpacing(50)
+        layout.addWidget(self.lbl_name)
+        layout.addSpacing(5)
+        layout.addWidget(self.lbl_id)
+        layout.addSpacing(30)
+        layout.addWidget(self.lbl_updated)
+        layout.addSpacing(10)
+        layout.addWidget(self.btn_update)
+        layout.addSpacing(30)
+        layout.addWidget(self.line_sep, 0, Qt.AlignmentFlag.AlignCenter)
+        layout.addSpacing(20)
+        layout.addWidget(self.btn_logout)
+        
+        self.card.add_widget(container)
+
+    def _create_avatar_section(self) -> QLabel:
+        """Avatar container oluşturur."""
         avatar_container = QLabel()
         avatar_container.setFixedSize(120, 120)
         avatar_container.setStyleSheet(f"""
@@ -117,11 +143,14 @@ class ProfileView(QWidget):
         """)
         
         icon_lbl = QLabel(avatar_container)
-        icon_lbl.setPixmap(qta.icon("fa5s.user", color="white").pixmap(QSize(50, 50)))
+        icon_lbl.setPixmap(qta.icon("fa5s.user-graduate", color="white").pixmap(QSize(50, 50)))
         icon_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         icon_lbl.setGeometry(0, 0, 120, 120)
         
-        # --- Metin Bilgileri ---
+        return avatar_container
+
+    def _create_info_section(self):
+        """İsim, numara ve tarih labellarını oluşturur."""
         self.lbl_name = QLabel("Ad Soyad")
         self.lbl_name.setFont(OBISFonts.get_font(18, "bold"))
         self.lbl_name.setStyleSheet(f"color: {OBISColors.TEXT_PRIMARY}; margin-top: 20px;")
@@ -137,18 +166,19 @@ class ProfileView(QWidget):
         self.lbl_updated.setFont(OBISFonts.get_font(8, "bold"))
         self.lbl_updated.setStyleSheet(f"color: {OBISColors.TEXT_GHOST}; letter-spacing: 0.5px;") 
         self.lbl_updated.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        
-        # --- Butonlar ---
+    
+    def _create_actions_section(self):
+        """Aksiyon butonlarını oluşturur."""
         # 1. Bilgilerimi Güncelle
         self.btn_update = OBISButton(" Bilgilerimi Güncelle", "primary", icon=qta.icon("fa5s.sync-alt", color="white"))
         self.btn_update.setFixedHeight(50) 
         self.btn_update.setFont(OBISFonts.get_font(11, "bold"))
         
         # Ayırıcı çizgi
-        line = QFrame()
-        line.setFrameShape(QFrame.Shape.HLine)
-        line.setStyleSheet(f"color: {OBISColors.LINE}; max-height: 5px;")
-        line.setFixedWidth(150)
+        self.line_sep = QFrame()
+        self.line_sep.setFrameShape(QFrame.Shape.HLine)
+        self.line_sep.setStyleSheet(f"color: {OBISColors.LINE}; max-height: 5px;")
+        self.line_sep.setFixedWidth(150)
         
         # 2. Çıkış Yap
         self.btn_logout = OBISButton(" Çıkış Yap", "ghost", icon=qta.icon("fa5s.sign-out-alt", color=OBISColors.DANGER))
@@ -165,22 +195,6 @@ class ProfileView(QWidget):
             }}
         """)
         self.btn_logout.clicked.connect(self.logout_requested.emit)
-        
-        layout.addWidget(avatar_container, 0, Qt.AlignmentFlag.AlignCenter)
-        layout.addSpacing(50)
-        layout.addWidget(self.lbl_name)
-        layout.addSpacing(5)
-        layout.addWidget(self.lbl_id)
-        layout.addSpacing(30)
-        layout.addWidget(self.lbl_updated)
-        layout.addSpacing(10)
-        layout.addWidget(self.btn_update)
-        layout.addSpacing(30)
-        layout.addWidget(line, 0, Qt.AlignmentFlag.AlignCenter)
-        layout.addSpacing(20)
-        layout.addWidget(self.btn_logout)
-        
-        self.card.add_widget(container)
 
     def set_user_data(self, name: str, student_num: str, last_update: str = ""):
         """Kullanıcı bilgilerini günceller."""

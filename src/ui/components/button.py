@@ -94,6 +94,11 @@ class OBISButton(QPushButton):
              
         self.setStyleSheet(style)
 
+    def set_type(self, new_type: str):
+        """Buton tipini ve stilini dinamik olarak günceller."""
+        self.button_type = new_type
+        self._apply_style()
+
 class OBISIconButton(QPushButton):
     """
     Sadece ikon içeren, yuvarlak veya kare buton.

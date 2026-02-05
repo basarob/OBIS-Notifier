@@ -82,6 +82,11 @@ graph TD
   - "Son Kontrol" saatinin gerçek veriyle güncellenmesi.
   - Bildirim ikonu ve Badge (Okunmamış bildirim sayısı) entegrasyonu.
 
+- **Dashboard (Ana Sayfa) UI:**
+  - **Sistem Kontrol:** `_create_control_card` ile modüler yapı. Başlat/Durdur butonu "Burst Limiter" (30sn/4 işlem) spam korumasına sahip.
+  - **Geri Sayım:** `_on_timer_tick` ile yönetilen ve `QTimer` kullanan hassas sayaç.
+  - **Manuel Kontrol:** `_check_now` metodu 10dk süre sınırı ve "Cooldown" kontrolü içeriyor.
+  - **Timeline:** `_create_timeline_card` ile scroll edilebilir anlık durum akışı.
 - **Logs (Log Kayıtları):**
   - Sanal terminal görünümü (Log Table).
   - Anlık akış (Live Stream) ve renklendirilmiş log seviyeleri.
@@ -89,14 +94,13 @@ graph TD
 
 ### 🚧 Bekleyenler / Yapılacaklar (In Progress / Todo)
 
-- [ ] **Dashboard (Ana Sayfa):** Notların listelendiği tablo ve özet kartları.
+- [ ] **Data Fetching (Backend Integration):**
+  - `DashboardView` üzerindeki sinyallerin (`system_status_changed`) backend servislerine (`Services`) bağlanması.
+  - `Notifier` sınıfının `dashboard.py` ile konuşması.
 - [ ] **Settings (Ayarlar):** Bildirim tercihleri, tarayıcı ayarları vb.
 - [ ] **Profile (Profil):** "Bilgilerimi Güncelle" butonu işlevsiz durumda (Mock). Gelecekte backend entegrasyonu yapılacak.
 - [ ] **Components:** Sidebar Footer kısmındaki sistem durumu indikatörünün (Yeşil/Kırmızı nokta) arka plandaki `Service` katmanına (Signal/Slot ile) bağlanması.
-- [ ] **Data Fetching:** Kullanıcı adının (OBIS'ten çekilmesi) ve numaranın dinamikleşmesi. (Şu an isim "Ad Soyad" olarak sabit).
-- [ ] **Topbar Dynamics:**
-  - "Son Kontrol" saatinin gerçek veriyle güncellenmesi.
-  - Bildirim ikonu ve Badge (Okunmamış bildirim sayısı) entegrasyonu.
+- [ ] **Topbar Dynamics:** "Son Kontrol" saatinin gerçek veriyle güncellenmesi.
 
 ## 5. Kritik Kurallar (Rules & Guidelines)
 

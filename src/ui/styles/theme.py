@@ -34,8 +34,13 @@ class OBISColors:
     SUCCESS_BG = "#D1FAE5"     # Yeşil Arka Plan (Badge için)
     DANGER = "#EF4444"         # Kırmızı (Hata/Çıkış)
     DANGER_BG = "#FEE2E2"      # Kırmızı Arka Plan
-    WARNING = "#F59E0B"        # .Turuncu
+    WARNING = "#F59E0B"        # Turuncu
+    WARNING_BG = "#FEF3C7"     # Turuncu Arka Plan
     INFO = "#3B82F6"           # Mavi
+    
+    # Ekstra Renkler
+    PURPLE = "#7E22CE"         # Mor
+    PURPLE_BG = "#F3E8FF"      # Mor Arka Plan
     
     # Border ve Çizgiler
     BORDER = "#EEEEEE"         # İnce grid çizgileri (Daha açık gri)

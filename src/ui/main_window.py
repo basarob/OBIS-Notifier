@@ -82,6 +82,10 @@ class MainWindow(QMainWindow):
         # Sinyal Bağlantıları
         self.logs_view.snackbar_signal.connect(self.show_snackbar)
         
+        # Dashboard <-> Sidebar Senkronizasyonu
+        self.dash_view.system_status_changed.connect(self.sidebar.set_system_status)
+        self.dash_view.snackbar_signal.connect(self.show_snackbar)
+        
         self.right_layout.addWidget(self.content_stack)
         
         self.app_layout.addWidget(self.right_container)
@@ -104,7 +108,14 @@ class MainWindow(QMainWindow):
         self.snackbar = OBISSnackbar(self)
         
         # Mevcut kullanıcı durumu
-        self.current_user = None
+        # self.current_user = None
+
+        # --- DEVELOPMENT BYPASS START ---
+        self.current_user = "221805031" # Öğrenci No
+        self.topbar.set_user_info("Başar Orhanbulucu", self.current_user)
+        self.profile_view.set_user_data("Başar Orhanbulucu", self.current_user, "2025-01-01 12:00:00")
+        self.main_stack.setCurrentIndex(1) # Doğrudan uygulamayı aç
+        # --- DEVELOPMENT BYPASS END ---
 
     def show_snackbar(self, message: str, type: str = "info"):
         """Uygulama genelinde bildirim gösterir."""
@@ -114,18 +125,22 @@ class MainWindow(QMainWindow):
     def _check_and_auto_login(self):
         """Kayıtlı oturum varsa otomatik giriş dener."""
         
+        # DEV MODE: Login bypass edildiği için burayı pass geçiyoruz.
+        logging.warning("DevMode ile program başlatıldı.")
+        pass
+
         # Varsayılan olarak Login ekranındayız
-        self.main_stack.setCurrentIndex(0) 
+        # self.main_stack.setCurrentIndex(0) 
         
-        credentials = SessionManager.load_session()
+        # credentials = SessionManager.load_session()
         
-        if credentials:
-            user, pwd = credentials
-            logging.info(f"Oto-login tetiklendi: {user}")
-            # Login view üzerindeki auto-login metodunu tetikle
-            self.login_view.check_auto_login(user, pwd)
-        else:
-            logging.info("Kayıtlı oturum bulunamadı.")
+        # if credentials:
+        #     user, pwd = credentials
+        #     logging.info(f"Oto-login tetiklendi: {user}")
+        #     # Login view üzerindeki auto-login metodunu tetikle
+        #     self.login_view.check_auto_login(user, pwd)
+        # else:
+        #     logging.info("Kayıtlı oturum bulunamadı.")
 
     def _on_login_success(self, user, pwd):
         """Giriş başarılı olunca ana ekrana geç."""

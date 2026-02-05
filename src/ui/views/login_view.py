@@ -80,11 +80,27 @@ class LoginView(QWidget):
     def _setup_ui(self):
         """Arayüz elemanlarını oluştur."""
         
-        #! Logo daha sonradan değişecek
         # 1. Üst Bölüm (Logo ve Başlıklar)
-        header_layout = QVBoxLayout()
-        header_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        header_layout.setSpacing(5)
+        header_layout = self._create_header()
+        
+        # 2. Login Kartı
+        self.card = self._create_login_card()
+        
+        # 3. Footer
+        footer_layout = self._create_footer()
+        
+        # Ana Layout Yerleşimi
+        self.main_layout.addStretch() # Üst boşluk
+        self.main_layout.addLayout(header_layout)
+        self.main_layout.addWidget(self.card)
+        self.main_layout.addLayout(footer_layout)
+        self.main_layout.addStretch() # Alt boşluk
+
+    def _create_header(self) -> QVBoxLayout:
+        """Logo ve başlıkların olduğu bölümü oluşturur."""
+        layout = QVBoxLayout()
+        layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.setSpacing(5)
         
         # Logo Arkaplanı
         logo_bg = QLabel()
@@ -97,12 +113,12 @@ class LoginView(QWidget):
         
         # Logo İkonu
         logo_icon = qta.icon("fa5s.graduation-cap", color="white")
-        logo_bg.setPixmap(logo_icon.pixmap(QSize(24, 24))) # Icon da küçüldü
+        logo_bg.setPixmap(logo_icon.pixmap(QSize(24, 24)))
         
         # Başlıklar
         title = QLabel("OBIS NOTIFIER")
         title.setFont(OBISFonts.H1)
-        title.setStyleSheet(f"color: {OBISColors.TEXT_PRIMARY}; margin-top: 10px;") # Margin azaltıldı
+        title.setStyleSheet(f"color: {OBISColors.TEXT_PRIMARY}; margin-top: 10px;")
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         
         subtitle = QLabel("ADÜ Akademik Asistan")
@@ -110,20 +126,17 @@ class LoginView(QWidget):
         subtitle.setStyleSheet(f"color: {OBISColors.TEXT_SECONDARY};")
         subtitle.setAlignment(Qt.AlignmentFlag.AlignCenter)
         
-        # Header'a ekle (Ortalayarak)
-        header_layout.addWidget(logo_bg, 0, Qt.AlignmentFlag.AlignCenter)
-        header_layout.addWidget(title)
-        header_layout.addWidget(subtitle)
+        layout.addWidget(logo_bg, 0, Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(title)
+        layout.addWidget(subtitle)
         
-        self.main_layout.addStretch() # Üst boşluk (Simetri için)
-        self.main_layout.addLayout(header_layout)
-        
-        # 2. Login Kartı
-        self.card = OBISCard(has_shadow=True)
-        self.card.setFixedSize(400, 310) # Kart Boyutu
-        
-        # Kart stili
-        self.card.setStyleSheet(OBISStyles.MAIN_CARD)
+        return layout
+
+    def _create_login_card(self) -> OBISCard:
+        """Giriş formunun olduğu kartı oluşturur."""
+        card = OBISCard(has_shadow=True)
+        card.setFixedSize(400, 310)
+        card.setStyleSheet(OBISStyles.MAIN_CARD)
         
         # Kart İçeriği
         card_content = QWidget()
@@ -143,14 +156,14 @@ class LoginView(QWidget):
         lbl_pass.setFont(OBISFonts.get_font(8, "medium"))
         lbl_pass.setStyleSheet(f"color: {OBISColors.TEXT_SECONDARY}; letter-spacing: 2px;")
         self.inp_pass = OBISInput(placeholder="********", icon_name="fa5s.lock", is_password=True)
-        self.inp_pass.returnPressed.connect(self._on_login_clicked) # Enter tuşu ile giriş
-
+        self.inp_pass.returnPressed.connect(self._on_login_clicked)
+        
         # Şifre Göster/Gizle Butonu
         self.btn_toggle_pass = self.inp_pass.add_action_button("fa5s.eye", self._toggle_password_visibility)
         
         # Login Butonu
         self.btn_login = OBISButton("Giriş Yap  ", "primary", icon=qta.icon("fa5s.sign-in-alt", color="white"))
-        self.btn_login.setLayoutDirection(Qt.LayoutDirection.RightToLeft) # İkonu sağa al
+        self.btn_login.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
         self.btn_login.clicked.connect(self._on_login_clicked)
         
         form_layout.addWidget(lbl_std)
@@ -161,12 +174,14 @@ class LoginView(QWidget):
         form_layout.addWidget(self.btn_login)
         form_layout.addStretch()
         
-        self.card.add_widget(card_content)
-        self.main_layout.addWidget(self.card)
+        card.add_widget(card_content)
+        return card
 
-        # 3. Footer
-        footer_layout = QVBoxLayout()
-        footer_layout.setSpacing(2) # Metinleri yaklaştır
+    def _create_footer(self) -> QVBoxLayout:
+        """Sayfa altındaki sürüm bilgisini oluşturur."""
+        layout = QVBoxLayout()
+        layout.setSpacing(2)
+        
         footer_lbl = QLabel("Obis Notifier v3.0")
         footer_lbl.setFont(OBISFonts.SMALL)
         footer_lbl.setStyleSheet(f"color: {OBISColors.TEXT_GHOST};")
@@ -177,11 +192,10 @@ class LoginView(QWidget):
         author_lbl.setStyleSheet(f"color: {OBISColors.TEXT_GHOST}; letter-spacing: 1px;")
         author_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         
-        footer_layout.addWidget(footer_lbl)
-        footer_layout.addWidget(author_lbl)
+        layout.addWidget(footer_lbl)
+        layout.addWidget(author_lbl)
         
-        self.main_layout.addLayout(footer_layout)
-        self.main_layout.addStretch() # En alta boşluk
+        return layout
 
     def _toggle_password_visibility(self):
         """Şifre görünürlüğünü değiştirir."""

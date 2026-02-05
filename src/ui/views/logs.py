@@ -25,7 +25,48 @@ class LogsView(QWidget):
         self.layout.setContentsMargins(0, 0, 0, 0)
         self.layout.setSpacing(15)
         
-        # --- Page Header ---
+        self._setup_ui()
+        
+        # Sinyal Bağlantısı
+        qt_logger.log_signal.connect(self.add_log_record)
+
+    def _setup_ui(self):
+        """Arayüzü oluşturur."""
+        # 1. Page Header (Arama + Temizle)
+        page_header = self._create_page_header()
+        self.layout.addLayout(page_header)
+        
+        # 2. Terminal Kartı (Shadow)
+        self.card = OBISCard(has_shadow=True)
+        self.card.layout.setContentsMargins(0, 0, 0, 0)
+        self.card.layout.setSpacing(0)
+        
+        # Ana Konteyner
+        main_container = QWidget()
+        main_container.setObjectName("MainContainer")
+        main_container.setStyleSheet(f"""
+            #MainContainer {{
+                border-radius: {OBISDimens.RADIUS_MEDIUM}px;
+                background-color: transparent;
+            }}
+        """)
+        
+        main_layout = QVBoxLayout(main_container)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.setSpacing(0)
+        
+        # 3. Terminal Bölümleri
+        top_section = self._create_terminal_header()
+        bottom_section = self._create_terminal_body()
+        
+        main_layout.addWidget(top_section)
+        main_layout.addWidget(bottom_section)
+        
+        self.card.add_widget(main_container)
+        self.layout.addWidget(self.card)
+
+    def _create_page_header(self) -> QHBoxLayout:
+        """Sayfa başlık alanını oluşturur."""
         page_header = QHBoxLayout()
         
         # Arama Kutusu
@@ -55,31 +96,10 @@ class LogsView(QWidget):
         page_header.addWidget(self.search_input) 
         page_header.addStretch() 
         page_header.addWidget(self.btn_clear)
-        
-        self.layout.addLayout(page_header)
-        
-        # --- Terminal Layout Container ---
-        # Card bileşeni sadece dış çerçeve (shadow) görevi görecek.
-        self.card = OBISCard(has_shadow=True)
-        self.card.layout.setContentsMargins(0, 0, 0, 0)
-        self.card.layout.setSpacing(0)
-        
-        # Ana Konteyner (Yuvarlak köşeleri maskelemek için)
-        main_container = QWidget()
-        main_container.setObjectName("MainContainer")
-        # Köşeleri yuvarlat ve taşmaları gizle
-        main_container.setStyleSheet(f"""
-            #MainContainer {{
-                border-radius: {OBISDimens.RADIUS_MEDIUM}px;
-                background-color: transparent;
-            }}
-        """)
-        
-        main_layout = QVBoxLayout(main_container)
-        main_layout.setContentsMargins(0, 0, 0, 0)
-        main_layout.setSpacing(0)
-        
-        # 1. ÜST BÖLÜM (Header & Column Names) - #181b21
+        return page_header
+
+    def _create_terminal_header(self) -> QFrame:
+        """Terminal üst kısmını (başlık + kolonlar) oluşturur."""
         top_section = QFrame()
         top_section.setObjectName("TopSection")
         top_section.setStyleSheet(f"""
@@ -141,9 +161,7 @@ class LogsView(QWidget):
         # 1.3 Özel Sütun İsimleri (Custom Columns)
         cols_layout = QHBoxLayout()
         cols_layout.setContentsMargins(0, 5, 0, 10)
-        cols_layout.setSpacing(0) # Sütunlar arası boşluğu sıfırla (Header ile Table hizası için)
-        
-        # Sütun Başlıklarını Hizalamak
+        cols_layout.setSpacing(0) 
         
         col_time = QLabel("TIMESTAMP")
         col_time.setFixedWidth(80) 
@@ -164,9 +182,11 @@ class LogsView(QWidget):
         cols_layout.addWidget(col_msg, 1)
         
         top_layout.addLayout(cols_layout)
-        main_layout.addWidget(top_section)
         
-        # 2. ALT BÖLÜM (Table Content) - #0f1115
+        return top_section
+
+    def _create_terminal_body(self) -> QFrame:
+        """Terminal alt kısmını (Tablo) oluşturur."""
         bottom_section = QFrame()
         bottom_section.setObjectName("BottomSection")
         bottom_section.setStyleSheet(f"""
@@ -183,7 +203,6 @@ class LogsView(QWidget):
         # .Tablo
         self.table = QTableWidget()
         self.table.setColumnCount(3)
-        # Headerları gizle çünkü yukarıda özel yaptık
         self.table.horizontalHeader().setVisible(False)
         self.table.verticalHeader().setVisible(False)
         self.table.setShowGrid(False)
@@ -195,7 +214,7 @@ class LogsView(QWidget):
         # .Tablo Stili
         self.table.setStyleSheet(OBISStyles.LOG_TABLE)
         
-        # Sütun Genişliklerini Header İle Eşle
+        # Sütun Genişlikleri
         header_view = self.table.horizontalHeader()
         header_view.setSectionResizeMode(0, QHeaderView.ResizeMode.Fixed) 
         header_view.setSectionResizeMode(1, QHeaderView.ResizeMode.Fixed) 
@@ -205,14 +224,8 @@ class LogsView(QWidget):
         self.table.setColumnWidth(1, 100)
         
         bottom_layout.addWidget(self.table)
-        main_layout.addWidget(bottom_section)
         
-        # Kart içine ekle
-        self.card.add_widget(main_container)
-        self.layout.addWidget(self.card)
-        
-        # Sinyal Bağlantısı
-        qt_logger.log_signal.connect(self.add_log_record)
+        return bottom_section
 
     @pyqtSlot(str, str, str)
     def add_log_record(self, timestamp, level, message):
