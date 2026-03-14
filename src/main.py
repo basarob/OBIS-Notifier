@@ -17,8 +17,6 @@ from utils.logger_qt import qt_logger
 from ui.main_window import MainWindow
 from ui.styles.theme import OBISFonts
 
-sys.dont_write_bytecode = True
-
 # Playwright Fix for PyInstaller
 if getattr(sys, 'frozen', False):
     os.environ["PLAYWRIGHT_BROWSERS_PATH"] = "0"
@@ -64,6 +62,20 @@ def main():
     # Font Kurulumu
     font_family = OBISFonts.init_fonts()
     app.setFont(QFont(font_family, 10))
+
+    # Global QSS (Stil) Dosyasını Yükle
+    if getattr(sys, 'frozen', False):
+        base_path = sys._MEIPASS
+    else:
+        base_path = os.path.dirname(os.path.abspath(__file__))
+        
+    qss_path = os.path.join(base_path, "ui", "styles", "global.qss")
+    try:
+        if os.path.exists(qss_path):
+            with open(qss_path, "r", encoding="utf-8") as f:
+                app.setStyleSheet(f.read())
+    except Exception as e:
+        logging.error(f"Global QSS yuklenemedi: {e}")
 
     window = MainWindow()
     window.show()

@@ -91,16 +91,23 @@ graph TD
   - Sanal terminal görünümü (Log Table).
   - Anlık akış (Live Stream) ve renklendirilmiş log seviyeleri.
   - Arama ve Temizleme fonksiyonları.
+- **Settings (Ayarlar):**
+  - Modern görünümde Otomasyon, Bildirim ve Gelişmiş seçenekler blokları oluşturuldu.
+  - Otomatik Seçim (Aktif Dönem) için `date_utils.py` ile dinamik hesaplamalar eklendi.
+  - Ayarların tutulacağı `settings.json` ile entegrasyon (Okuma/Yazma işlemleri) başarıyla bağlandı.
 
-### 🚧 Bekleyenler / Yapılacaklar (In Progress / Todo)
+### 🚧 Bekleyenler / Yapılacaklar (Backend Integration Phase)
 
-- [ ] **Data Fetching (Backend Integration):**
-  - `DashboardView` üzerindeki sinyallerin (`system_status_changed`) backend servislerine (`Services`) bağlanması.
-  - `Notifier` sınıfının `dashboard.py` ile konuşması.
-- [ ] **Settings (Ayarlar):** Bildirim tercihleri, tarayıcı ayarları vb.
-- [ ] **Profile (Profil):** "Bilgilerimi Güncelle" butonu işlevsiz durumda (Mock). Gelecekte backend entegrasyonu yapılacak.
-- [ ] **Components:** Sidebar Footer kısmındaki sistem durumu indikatörünün (Yeşil/Kırmızı nokta) arka plandaki `Service` katmanına (Signal/Slot ile) bağlanması.
-- [ ] **Topbar Dynamics:** "Son Kontrol" saatinin gerçek veriyle güncellenmesi.
+Artık UI katmanı tamamlanmış olup odak **Core Logic (Backend)** tarafına kaydırılmalıdır:
+
+- [ ] **Notifier Service Migration (`src/core/notifier.py`):**
+  - Web Scraping (Playwright) mantığının UI'ı kitlemeden (QThread/Worker) çalışabilmesi.
+  - Playwright sonuçlarının, `DashboardView`'daki `_add_timeline_item` vb. metotlara Signal üzerinden bağlanması.
+- [ ] **Data Fetching & State Senkronizasyonu:**
+  - `MainWindow` üzerindeki `DevMode` (Mock Login bypass) kaldırılarak tam güvenli Login akışının test edilmesi.
+  - "Son Kontrol", "TopBar Bildirimleri" ve "Dashboard" verilerinin arkadan gelen dinamik verilerle değiştirilmesi.
+- [ ] **Profile Service:** "Bilgilerimi Güncelle" butonunun kullanıcı verilerini gerçekten sunucudan çekip tazelemesi.
+- [ ] **Global Signals:** Uygulama içerisinde dönen backend bildirimlerinin `OBISSnackbar` ile küresel olarak ekrana basılması.
 
 ## 5. Kritik Kurallar (Rules & Guidelines)
 
@@ -123,4 +130,4 @@ graph TD
 
 ---
 
-_Bu rapor en son 05.02.2026 tarihinde güncellenmiştir._
+_Bu rapor sistem tamamlanma aşamalarına paralel olarak güncellenmektedir. UI Fazı Tamamlandı. (Faz 2: Backend Integration)_

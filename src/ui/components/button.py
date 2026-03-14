@@ -65,6 +65,22 @@ class OBISButton(QPushButton):
                 }}
             """
              
+        elif self.button_type == "success":
+             style = base_style + f"""
+                QPushButton {{
+                    background-color: {OBISColors.SUCCESS};
+                    color: {OBISColors.TEXT_WHITE};
+                }}
+                QPushButton:hover {{
+                    background-color: #059669; /* Daha koyu yeşil hover */
+                    color: {OBISColors.TEXT_WHITE};
+                }}
+                QPushButton:pressed {{
+                    background-color: #047857; /* En koyu yeşil */
+                    color: {OBISColors.TEXT_WHITE};
+                }}
+            """
+             
         elif self.button_type == "outline":
             style = base_style + f"""
                 QPushButton {{
