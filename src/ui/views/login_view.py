@@ -5,6 +5,9 @@ giriş yaptığı ekran.
 
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel, QMessageBox, QLineEdit
 from PyQt6.QtCore import Qt, pyqtSignal, QSize, QThread
+from PyQt6.QtGui import QPixmap
+import os
+import sys
 from ..components.card import OBISCard
 from ..components.input import OBISInput
 from ..components.button import OBISButton
@@ -104,16 +107,19 @@ class LoginView(QWidget):
         
         # Logo Arkaplanı
         logo_bg = QLabel()
-        logo_bg.setFixedSize(52, 52)
-        logo_bg.setStyleSheet(f"""
-            background-color: {OBISColors.PRIMARY};
-            border-radius: {OBISDimens.RADIUS_MEDIUM}px;
-        """)
+        logo_bg.setFixedSize(80, 80)
         logo_bg.setAlignment(Qt.AlignmentFlag.AlignCenter)
         
         # Logo İkonu
-        logo_icon = qta.icon("fa5s.graduation-cap", color="white")
-        logo_bg.setPixmap(logo_icon.pixmap(QSize(24, 24)))
+        if getattr(sys, 'frozen', False):
+            base_path = sys._MEIPASS
+        else:
+            base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+            
+        icon_path = os.path.join(base_path, "images", "icon.png")
+        pixmap = QPixmap(icon_path)
+        pixmap = pixmap.scaled(QSize(80, 80), Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+        logo_bg.setPixmap(pixmap)
         
         # Başlıklar
         title = QLabel("OBIS NOTIFIER")
@@ -247,7 +253,7 @@ class LoginView(QWidget):
         
         if not user:
             self.inp_std.set_error(True)
-            OBISAnimations.shake(self.inp_std) # Titreşim Efekti
+            OBISAnimations.shake(self.inp_std) # .Titreşim Efekti
             has_error = True
             
         if not pwd:

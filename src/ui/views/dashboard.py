@@ -129,7 +129,7 @@ class DashboardView(QWidget):
         # Ana Buton (Toggle)
         self.btn_toggle = OBISButton(" Sistemi Başlat", "primary", icon=qta.icon("fa5s.play", color="white"))
         self.btn_toggle.setFixedHeight(90) 
-        self.btn_toggle.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed) # Enine genişle
+        self.btn_toggle.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self.btn_toggle.setFont(OBISFonts.get_font(14, "bold"))
         self.btn_toggle.clicked.connect(self._toggle_system)
         
@@ -152,7 +152,7 @@ class DashboardView(QWidget):
         # İçerik ortalı
         t_layout = QHBoxLayout(self.timer_widget)
         t_layout.setContentsMargins(10, 0, 10, 0)
-        t_layout.setAlignment(Qt.AlignmentFlag.AlignCenter) # Ortala
+        t_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
         
         # İkon
         t_icon = QLabel()
@@ -219,7 +219,7 @@ class DashboardView(QWidget):
         self.lbl_count.setAlignment(Qt.AlignmentFlag.AlignCenter)
         
         # Alt Açıklama
-        lbl_sub = QLabel("Günlük Kontrol Sayısı")
+        lbl_sub = QLabel("Kontrol Sayısı")
         lbl_sub.setFont(OBISFonts.BODY)
         lbl_sub.setStyleSheet(f"color: {OBISColors.TEXT_SECONDARY};")
         lbl_sub.setAlignment(Qt.AlignmentFlag.AlignCenter)

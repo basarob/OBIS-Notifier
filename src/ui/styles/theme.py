@@ -122,6 +122,7 @@ class OBISStyles:
         border: 0px; 
     """
 
+    # Log Tablosu
     LOG_TABLE = f"""
         QTableWidget {{
             background-color: transparent;
@@ -149,6 +150,126 @@ class OBISStyles:
         }}
         QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{
             height: 0px;
+        }}
+    """
+
+    # Sidebar
+    SIDEBAR = f"""
+        OBISSidebar {{
+            background-color: {OBISColors.SIDEBAR_BG};
+            border-right: 1px solid {OBISColors.BORDER};
+        }}
+    """
+
+    # Sidebar Button
+    SIDEBAR_BUTTON = f"""
+        QPushButton {{
+            background-color: transparent;
+            border: none;
+            text-align: left;
+            padding-left: 20px;
+            color: {OBISColors.TEXT_SECONDARY};
+            border-radius: {OBISDimens.RADIUS_SMALL}px;
+            margin-left: 10px;
+            margin-right: 10px;
+        }}
+        QPushButton:hover {{
+            background-color: {OBISColors.HOVER_LIGHT};
+            color: {OBISColors.PRIMARY};
+        }}
+        QPushButton:checked {{
+            background-color: {OBISColors.HOVER_BLUE};
+            color: {OBISColors.PRIMARY};
+            font-weight: bold;
+        }}
+    """
+
+    # TopBar
+    TOPBAR = f"""
+        #TopBar {{
+            background-color: {OBISColors.SURFACE}; 
+            border-bottom: 1px solid {OBISColors.BORDER};
+        }}
+    """
+
+    # Profile Card (TopBar)
+    PROFILE_CARD = f"""
+        QFrame {{
+            background-color: transparent;
+            border: none;
+            border-radius: 8px;
+        }}
+        QFrame:hover {{
+            background-color: {OBISColors.HOVER_LIGHT};
+        }}
+    """
+
+    # Avatar (TopBar)
+    AVATAR = f"""
+        QLabel {{
+            background-color: {OBISColors.AVATAR_BG};
+            border-radius: 21px; 
+            border: 2px solid {OBISColors.SURFACE}; 
+            outline: 1px solid {OBISColors.PRIMARY}; 
+        }}
+    """
+
+    # Back Button (Profile)
+    BACK_BUTTON = f"""
+        QPushButton {{
+            color: {OBISColors.PRIMARY};
+            font-family: 'Inter', 'Segoe UI';
+            font-size: {OBISDimens.TEXT_H3}px;
+            font-weight: 600;
+            background: transparent;
+            border: none;
+            text-align: left;
+            padding: 0px; 
+        }}
+    """
+
+    # Logout Button (Profile)
+    LOGOUT_BUTTON = f"""
+        QPushButton {{
+            color: {OBISColors.DANGER};
+            background: transparent;
+            border: none;
+            font-weight: bold;
+            font-family: 'Inter', 'Segoe UI';
+        }}
+        QPushButton:hover {{
+            background: transparent;
+        }}
+    """
+
+    # Clear Logs Button (Logs)
+    CLEAR_LOGS_BUTTON = f"""
+        QPushButton {{
+            border: 1px solid {OBISColors.BORDER};
+            color: {OBISColors.TEXT_SECONDARY};
+            background-color: {OBISColors.SURFACE};
+            border-radius: {OBISDimens.RADIUS_MEDIUM}px;
+            padding: 0 16px;
+            font-family: 'Inter';
+            font-weight: bold;
+        }}
+        QPushButton:hover {{
+            background-color: {OBISColors.BACKGROUND};
+            border-color: {OBISColors.PRIMARY};
+        }}
+    """
+
+    # Terminal Header (Logs)
+    TERMINAL_HEADER = f"""
+        #TopSection {{
+            background-color: {OBISColors.TERMINAL_HEADER};
+            border-bottom: 1px solid {OBISColors.TERMINAL_BORDER};
+            border-top-left-radius: 12px;
+            border-top-right-radius: 12px;
+        }}
+        QLabel {{
+            background-color: transparent;
+            border: none;
         }}
     """
 

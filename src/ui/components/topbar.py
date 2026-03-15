@@ -4,7 +4,7 @@ BU DOSYA: Ekranın sağ üst köşesindeki kullanıcı bilgi çubuğu.
 
 from PyQt6.QtWidgets import QFrame, QHBoxLayout, QLabel, QPushButton, QWidget, QVBoxLayout
 from PyQt6.QtCore import Qt, QSize, pyqtSignal
-from ..styles.theme import OBISColors, OBISDimens, OBISFonts
+from ..styles.theme import OBISColors, OBISDimens, OBISFonts, OBISStyles
 import qtawesome as qta
 
 class OBISTopBar(QFrame):
@@ -19,12 +19,7 @@ class OBISTopBar(QFrame):
         self.setObjectName("TopBar")
         self.setFixedHeight(OBISDimens.TOPBAR_HEIGHT)
         # Sadece TopBar ID'sine sahip elemana stil uygula (Child widgetlara sızmasını engeller)
-        self.setStyleSheet(f"""
-            #TopBar {{
-                background-color: {OBISColors.SURFACE}; 
-                border-bottom: 1px solid {OBISColors.BORDER};
-            }}
-        """)
+        self.setStyleSheet(OBISStyles.TOPBAR)
         
         self.layout = QHBoxLayout(self)
         self.layout.setContentsMargins(30, 0, 30, 0)
@@ -88,16 +83,7 @@ class OBISTopBar(QFrame):
         # Profil Kartı (Frame olarak yeniden tasarlandı)
         self.profile_widget = QFrame()
         self.profile_widget.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.profile_widget.setStyleSheet(f"""
-            QFrame {{
-                background-color: transparent;
-                border: none;
-                border-radius: 8px;
-            }}
-            QFrame:hover {{
-                background-color: {OBISColors.HOVER_LIGHT};
-            }}
-        """)
+        self.profile_widget.setStyleSheet(OBISStyles.PROFILE_CARD)
         
         self.profile_widget.mousePressEvent = lambda event: self.profile_clicked.emit()
 
@@ -128,18 +114,11 @@ class OBISTopBar(QFrame):
         # Avatar
         self.avatar = QLabel()
         self.avatar.setFixedSize(42, 42)
-        self.avatar.setStyleSheet(f"""
-            QLabel {{
-                background-color: {OBISColors.AVATAR_BG};
-                border-radius: 21px; 
-                border: 2px solid {OBISColors.SURFACE}; 
-                outline: 1px solid {OBISColors.PRIMARY}; 
-            }}
-        """)
+        self.avatar.setStyleSheet(OBISStyles.AVATAR)
         self.avatar.setAlignment(Qt.AlignmentFlag.AlignCenter)
         
         # Avatar İkon
-        avatar_icon = qta.icon("fa5s.user-graduate", color=OBISColors.SURFACE) # Öğrenci ikonu
+        avatar_icon = qta.icon("fa5s.user-graduate", color=OBISColors.SURFACE)
         self.avatar.setPixmap(avatar_icon.pixmap(QSize(22, 22)))
         
         p_layout.addWidget(text_container)

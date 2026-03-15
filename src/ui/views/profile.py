@@ -58,18 +58,7 @@ class ProfileView(QWidget):
         # 1. Geri Dön Butonu (Kartın Sol Üstü)
         self.btn_back = OBISButton(" Geri Dön", "ghost", icon=qta.icon("fa5s.arrow-left", color=OBISColors.PRIMARY))
         # Buton stilini özelleştir
-        self.btn_back.setStyleSheet(f"""
-            QPushButton {{
-                color: {OBISColors.PRIMARY};
-                font-family: 'Inter', 'Segoe UI';
-                font-size: {OBISDimens.TEXT_H3}px;
-                font-weight: 600;
-                background: transparent;
-                border: none;
-                text-align: left;
-                padding: 0px; 
-            }}
-        """)
+        self.btn_back.setStyleSheet(OBISStyles.BACK_BUTTON)
         self.btn_back.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_back.clicked.connect(self.back_requested.emit)
         self.btn_back.setFixedWidth(120) # Sola yaslanması için sınırlı genişlik
@@ -182,18 +171,7 @@ class ProfileView(QWidget):
         
         # 2. Çıkış Yap
         self.btn_logout = OBISButton(" Çıkış Yap", "ghost", icon=qta.icon("fa5s.sign-out-alt", color=OBISColors.DANGER))
-        self.btn_logout.setStyleSheet(f"""
-            QPushButton {{
-                color: {OBISColors.DANGER};
-                background: transparent;
-                border: none;
-                font-weight: bold;
-                font-family: 'Inter', 'Segoe UI';
-            }}
-            QPushButton:hover {{
-                background: transparent;
-            }}
-        """)
+        self.btn_logout.setStyleSheet(OBISStyles.LOGOUT_BUTTON)
         self.btn_logout.clicked.connect(self.logout_requested.emit)
 
     def set_user_data(self, name: str, student_num: str, last_update: str = ""):

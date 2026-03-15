@@ -9,8 +9,35 @@ import os
 import logging
 import webbrowser
 import qtawesome as qta
+import re
 
 # UI Components
+from PyQt6.QtCore import QThread, pyqtSignal
+from ..components.card import OBISCard
+from ..utils.animations import OBISAnimations
+from services.notification import NotificationService
+
+class TestMailWorker(QThread):
+    """Arka planda test maili gönderir."""
+    result_signal = pyqtSignal(bool, str)
+
+    def __init__(self, email, pwd):
+        super().__init__()
+        self.email = email
+        self.pwd = pwd
+
+    def run(self):
+        try:
+            service = NotificationService(
+                sender_email=self.email,
+                sender_password=self.pwd,
+                notification_methods=["email"]
+            )
+            service.send_test_notification()
+            self.result_signal.emit(True, "Test bildirimi gönderildi.")
+        except Exception as e:
+            self.result_signal.emit(False, "Test maili gönderilemedi. Bilgileri/İnternet bağlantınızı kontrol edin.")
+
 from ..components.card import OBISCard
 from ..components.input import OBISInput
 from ..components.button import OBISButton
@@ -311,7 +338,6 @@ class SettingsView(QWidget):
         action_row = QHBoxLayout()
         action_row.setContentsMargins(0, 0, 0, 0)
         action_row.setSpacing(12)
-        action_row.addStretch()
         
         self.btn_2fa = OBISButton("2 Adımlı Doğrulamayı Aç", "outline", icon=qta.icon("fa5s.shield-alt", color=OBISColors.WARNING))
         self.btn_2fa.setFixedHeight(32)
@@ -325,8 +351,16 @@ class SettingsView(QWidget):
         btn_pass.setStyleSheet(f"QPushButton {{ color: {OBISColors.PURPLE}; border: 1px solid {OBISColors.PURPLE}; border-radius: {OBISDimens.RADIUS_SMALL}px; background-color: {OBISColors.SURFACE}; padding: 0 16px; }} QPushButton:hover {{ background-color: {OBISColors.PURPLE_BG}; }}")
         btn_pass.clicked.connect(lambda: webbrowser.open("https://myaccount.google.com/apppasswords"))
         
+        self.btn_test_mail = OBISButton("Bildirimi Test Et", "outline", icon=qta.icon("fa5s.paper-plane", color=OBISColors.TEXT_SECONDARY))
+        self.btn_test_mail.setFixedHeight(32)
+        self.btn_test_mail.setFont(OBISFonts.get_font(9, "medium"))
+        self.btn_test_mail.setStyleSheet(f"QPushButton {{ color: {OBISColors.TEXT_SECONDARY}; border: 1px solid {OBISColors.BORDER}; border-radius: {OBISDimens.RADIUS_SMALL}px; background-color: {OBISColors.SURFACE}; padding: 0 16px; }} QPushButton:hover {{ background-color: {OBISColors.BACKGROUND}; }}")
+        self.btn_test_mail.clicked.connect(self._on_test_mail_clicked)
+        
         action_row.addWidget(self.btn_2fa)
         action_row.addWidget(btn_pass)
+        action_row.addStretch()
+        action_row.addWidget(self.btn_test_mail)
         g_layout.addLayout(action_row)
         
         mb_layout.addWidget(self.gmail_container)
@@ -482,6 +516,52 @@ class SettingsView(QWidget):
     def _toggle_gmail_settings(self, checked):
         self.gmail_container.setVisible(checked)
 
+    def _on_test_mail_clicked(self):
+        email = self.inp_gmail.text().strip()
+        pwd = self.inp_app_pass.text().strip()
+        
+        has_error = False
+        
+        # E-mail Format Kontrolü
+        if not email or not re.match(r"[^@]+@[^@]+\.[^@]+", email):
+            self.inp_gmail.set_error(True)
+            OBISAnimations.shake(self.inp_gmail)
+            has_error = True
+            
+        if not pwd:
+            self.inp_app_pass.set_error(True)
+            if not has_error:
+                OBISAnimations.shake(self.inp_app_pass)
+            else:
+                OBISAnimations.shake(self.inp_app_pass)
+            has_error = True
+            
+        if has_error:
+            if not hasattr(self, 'snackbar'):
+                self.snackbar = OBISSnackbar(self.parent() or self)
+            self.snackbar.show_message("Lütfen geçerli bir e-posta adresi ve şifre giriniz.", OBISSnackbar.ERROR)
+            return
+            
+        # Test Maili Gönderimi Başlat
+        self.btn_test_mail.setEnabled(False)
+        self.btn_test_mail.setText("Gönderiliyor...")
+        
+        self.test_worker = TestMailWorker(email, pwd)
+        self.test_worker.result_signal.connect(self._on_test_mail_finished)
+        self.test_worker.start()
+
+    def _on_test_mail_finished(self, success, message):
+        self.btn_test_mail.setEnabled(True)
+        self.btn_test_mail.setText("Bildirimi Test Et")
+        
+        if not hasattr(self, 'snackbar'):
+            self.snackbar = OBISSnackbar(self.parent() or self)
+            
+        if success:
+            self.snackbar.show_message(message, OBISSnackbar.SUCCESS)
+        else:
+            self.snackbar.show_message(message, OBISSnackbar.ERROR)
+
     def _toggle_semester_mode(self, checked):
         """Otomatik dönem seçeneği değiştiğinde ComboBox'ı günceller."""
         if checked:
@@ -545,6 +625,8 @@ class SettingsView(QWidget):
         else:
             self._toggle_gmail_settings(False)
             self.sw_auto_semester.setChecked(True) # Default Otomatik
+            
+        self._toggle_semester_mode(self.sw_auto_semester.isChecked())
 
     def save_settings(self):
         # Snackbar instance kontrolü

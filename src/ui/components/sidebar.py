@@ -5,8 +5,10 @@ Yenilenmiş Tasarım: Header (Logo/İsim), Navigasyon, Footer (Durum).
 
 from PyQt6.QtWidgets import QFrame, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QWidget, QSpacerItem, QSizePolicy
 from PyQt6.QtCore import Qt, QSize, pyqtSignal, pyqtProperty
-from PyQt6.QtGui import QColor, QPainter, QBrush
-from ..styles.theme import OBISColors, OBISDimens, OBISFonts
+from PyQt6.QtGui import QColor, QPainter, QBrush, QPixmap
+import os
+import sys
+from ..styles.theme import OBISColors, OBISDimens, OBISFonts, OBISStyles
 from ..utils.animations import OBISAnimations
 import qtawesome as qta
 
@@ -51,27 +53,7 @@ class SidebarButton(QPushButton):
         self.setAutoExclusive(True)
         
         # Varsayılan stil (Padding ve Margin ayarları)
-        self.setStyleSheet(f"""
-            QPushButton {{
-                background-color: transparent;
-                border: none;
-                text-align: left;
-                padding-left: 20px;
-                color: {OBISColors.TEXT_SECONDARY};
-                border-radius: {OBISDimens.RADIUS_SMALL}px;
-                margin-left: 10px;
-                margin-right: 10px;
-            }}
-            QPushButton:hover {{
-                background-color: {OBISColors.HOVER_LIGHT};
-                color: {OBISColors.PRIMARY};
-            }}
-            QPushButton:checked {{
-                background-color: {OBISColors.HOVER_BLUE};
-                color: {OBISColors.PRIMARY};
-                font-weight: bold;
-            }}
-        """)
+        self.setStyleSheet(OBISStyles.SIDEBAR_BUTTON)
         
         # Başlangıç ikonu
         self._update_icon(OBISColors.TEXT_SECONDARY)
@@ -103,12 +85,7 @@ class OBISSidebar(QFrame):
         super().__init__(parent)
         
         self.setFixedWidth(OBISDimens.SIDEBAR_WIDTH)
-        self.setStyleSheet(f"""
-            OBISSidebar {{
-                background-color: {OBISColors.SIDEBAR_BG};
-                border-right: 1px solid {OBISColors.BORDER};
-            }}
-        """)
+        self.setStyleSheet(OBISStyles.SIDEBAR)
         
         self.layout = QVBoxLayout(self)
         self.layout.setContentsMargins(0, 0, 0, 0)
@@ -154,16 +131,19 @@ class OBISSidebar(QFrame):
         
         # Logo Arkaplanı
         logo_bg = QLabel()
-        logo_bg.setFixedSize(40, 40)
-        logo_bg.setStyleSheet(f"""
-            background-color: {OBISColors.PRIMARY};
-            border-radius: {OBISDimens.RADIUS_MEDIUM}px;
-        """)
+        logo_bg.setFixedSize(52, 52)
         logo_bg.setAlignment(Qt.AlignmentFlag.AlignCenter)
         
         # Logo İkonu
-        logo_icon = qta.icon("fa5s.graduation-cap", color="white")
-        logo_bg.setPixmap(logo_icon.pixmap(QSize(18, 18)))
+        if getattr(sys, 'frozen', False):
+            base_path = sys._MEIPASS
+        else:
+            base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+            
+        icon_path = os.path.join(base_path, "images", "icon.png")
+        pixmap = QPixmap(icon_path)
+        pixmap = pixmap.scaled(QSize(48, 48), Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+        logo_bg.setPixmap(pixmap)
         
         # Yazı Grubu
         text_container = QWidget()

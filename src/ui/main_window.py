@@ -79,6 +79,7 @@ class MainWindow(QMainWindow):
         self.content_stack.addWidget(self.dash_view)      # Index 0
         self.content_stack.addWidget(self.settings_view)  # Index 1
         self.content_stack.addWidget(self.logs_view)      # Index 2
+
         # Sinyal Bağlantıları
         self.logs_view.snackbar_signal.connect(self.show_snackbar)
         
@@ -87,12 +88,12 @@ class MainWindow(QMainWindow):
         self.dash_view.snackbar_signal.connect(self.show_snackbar)
         
         self.right_layout.addWidget(self.content_stack)
-        
         self.app_layout.addWidget(self.right_container)
         self.main_stack.addWidget(self.app_container) # Index 1: Uygulama
         
         # 3. Profil Ekranı
         self.profile_view = ProfileView()
+        
         # Buton Bağlantıları
         self.profile_view.back_requested.connect(self._on_profile_back)
         self.profile_view.logout_requested.connect(self._logout)

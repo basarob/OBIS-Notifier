@@ -13,7 +13,7 @@ build/
 *.log
 grades_data.json
 settings.json
-obis_notifier.log
+obis_log.log
 
 # --- Playwright ---
 ms-playwright/

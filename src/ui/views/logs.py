@@ -76,21 +76,7 @@ class LogsView(QWidget):
         
         # .Temizle Butonu
         self.btn_clear = OBISButton("Logları Temizle", "outline", icon=qta.icon("fa5s.trash", color=OBISColors.TEXT_SECONDARY))
-        self.btn_clear.setStyleSheet(f"""
-            QPushButton {{
-                border: 1px solid {OBISColors.BORDER};
-                color: {OBISColors.TEXT_SECONDARY};
-                background-color: {OBISColors.SURFACE};
-                border-radius: {OBISDimens.RADIUS_MEDIUM}px;
-                padding: 0 16px;
-                font-family: 'Inter';
-                font-weight: bold;
-            }}
-            QPushButton:hover {{
-                background-color: {OBISColors.BACKGROUND};
-                border-color: {OBISColors.PRIMARY};
-            }}
-        """)
+        self.btn_clear.setStyleSheet(OBISStyles.CLEAR_LOGS_BUTTON)
         self.btn_clear.clicked.connect(self._clear_logs)
         
         page_header.addWidget(self.search_input) 
@@ -102,18 +88,7 @@ class LogsView(QWidget):
         """Terminal üst kısmını (başlık + kolonlar) oluşturur."""
         top_section = QFrame()
         top_section.setObjectName("TopSection")
-        top_section.setStyleSheet(f"""
-            #TopSection {{
-                background-color: {OBISColors.TERMINAL_HEADER};
-                border-bottom: 1px solid {OBISColors.TERMINAL_BORDER};
-                border-top-left-radius: 12px;
-                border-top-right-radius: 12px;
-            }}
-            QLabel {{
-                background-color: transparent;
-                border: none;
-            }}
-        """)
+        top_section.setStyleSheet(OBISStyles.TERMINAL_HEADER)
         top_layout = QVBoxLayout(top_section)
         top_layout.setContentsMargins(20, 15, 20, 0)
         top_layout.setSpacing(10)
@@ -243,19 +218,16 @@ class LogsView(QWidget):
         self.table.setItem(row, 0, item_time)
         
         # 2. Level Badge (QLabel ile Custom Widget)
-        # QTableWidgetItem sadece metin ve arka plan rengi destekler, radius desteklemez.
-        # Bu yüzden hücreye bir Widget (Container -> Label) koyuyoruz.
-        
         badge_container = QWidget()
-        badge_container.setStyleSheet("background-color: transparent;") # Container şeffaf olmalı
+        badge_container.setStyleSheet("background-color: transparent;")
         badge_layout = QHBoxLayout(badge_container)
-        badge_layout.setContentsMargins(5, 2, 5, 2) # Hücre içi boşluk
+        badge_layout.setContentsMargins(5, 2, 5, 2)
         badge_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
         
         lbl_badge = QLabel(level)
         lbl_badge.setFont(OBISFonts.get_font(8, "bold"))
         lbl_badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        lbl_badge.setFixedHeight(20) # Sabit yükseklik
+        lbl_badge.setFixedHeight(20)
         
         # Renkleri Belirle
         color_map = {
@@ -273,7 +245,7 @@ class LogsView(QWidget):
             QLabel {{
                 color: {fg};
                 background-color: {bg};
-                border-radius: 4px; /* Yuvarlak Köşe */
+                border-radius: 4px;
                 padding: 0 8px;
             }}
         """)
