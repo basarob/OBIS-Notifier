@@ -7,6 +7,7 @@ import logging
 import sys
 import subprocess
 from typing import Optional, Dict
+import os
 
 # Playwright importları
 from playwright.sync_api import sync_playwright, Browser, Page, Playwright
@@ -124,6 +125,8 @@ class BrowserService:
             self.page.locator(OBISSelectors.LOGIN_USERNAME_INPUT).fill(email)
             self.page.locator(OBISSelectors.LOGIN_PASSWORD_INPUT).fill(password)
             
+            self.page.wait_for_timeout(1000)
+
             # Giriş butonuna tıkla
             self.page.locator(OBISSelectors.LOGIN_BUTTON).click()
 
@@ -167,11 +170,11 @@ class BrowserService:
             # 2. Dönem Combobox'ını aç
             self.page.locator(OBISSelectors.SEMESTER_COMBOBOX_ARROW).click()
             
-            # 3. Listeden dönemi seç (Dropdown görünür olmalı)
+            # 3. Dropdown görünürlüğünü bekle
             dropdown_list = self.page.locator(OBISSelectors.SEMESTER_DROPDOWN_LIST)
             dropdown_list.wait_for(state='visible')
 
-            # Dönem metnine göre seç (örn: "2024/2025 Güz")
+            # 4. Dönem metnine göre seç
             semester_item = self.page.locator(f'li:has-text("{semester}")')
             
             if semester_item.count() == 0:
@@ -182,7 +185,7 @@ class BrowserService:
             
             self.page.wait_for_load_state('networkidle')
             
-            # 4. Tablonun yüklenmesini bekle
+            # 5. Tablonun yüklenmesini bekle
             self.page.wait_for_selector(OBISSelectors.GRADES_TABLE_SELECTOR, state='visible')
 
             return True
@@ -196,3 +199,57 @@ class BrowserService:
         if self.page:
             return self.page.content()
         return ""
+
+    def download_graduation_pdf(self) -> str:
+        """
+        Mezuniyet sayfasına gider, PDF'i indirir ve dosya yolunu döner.
+        """
+        logging.info("Mezuniyet sayfasına gidiliyor...")
+        if not self.page: return ""
+
+        try:
+            # 1. Menüleri aç
+            self.page.locator(OBISSelectors.MENU_PROFILE).click()
+            self.page.locator(OBISSelectors.MENU_PROFILE_INFO).click()
+            
+            # 2. Sayfanın yüklenmesini bekle
+            self.page.wait_for_load_state('networkidle')
+
+            # 2. İndirme menüsünü açacak butona tıkla
+            download_button = self.page.locator(OBISSelectors.PROFILE_DOWNLOAD_BUTTON)
+            download_button.click()
+
+            # 3. Menünün açılması için kısa bir süre bekle
+            download_menu = self.page.locator(OBISSelectors.PROFILE_DOWNLOAD_MENU)
+            download_menu.wait_for(state='visible')
+
+            # 4. PDF butonuna tıkla
+            pdf_button = self.page.locator(OBISSelectors.PROFILE_DOWNLOAD_PDF_OPTION)
+            self.page.wait_for_timeout(1000)
+
+            # 3."PDF" yazan seçeneğe tıkla ve indirmeyi bekle
+            with self.page.expect_download(timeout=60000) as download_info:
+                pdf_button.click(force=True)
+                logging.info("PDF indiriliyor...")
+            
+            download = download_info.value
+            
+            # 4. İndirmenin bitmesini kesin olarak bekle
+            download_error = download.failure()
+            if download_error:
+                logging.error(f"İndirme işlemi başarısız: {download_error}")
+                return ""
+
+            # KRİTİK ÇÖZÜM: Çalışma dizini yerine AppData içine kaydet
+            appdata_dir = os.path.join(os.getenv('LOCALAPPDATA'), 'OBISNotifier')
+            os.makedirs(appdata_dir, exist_ok=True) # Klasör yoksa oluştur
+            
+            # 5. Geçici bir yola kaydet
+            temp_path = os.path.join(os.getcwd(), "temp_mezuniyet.pdf")
+            download.save_as(temp_path)
+            
+            return temp_path
+            
+        except Exception as e:
+            logging.error(f"PDF indirme hatası: {str(e)}")
+            return ""

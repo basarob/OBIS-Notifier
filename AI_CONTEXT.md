@@ -47,16 +47,17 @@ graph TD
 
 ### 📂 Dosya Yapısı (Hedef Yapı)
 
-| Dizin / Dosya             | Sorumluluk (Responsibility)                                                    |
-| :------------------------ | :----------------------------------------------------------------------------- |
-| `src/main.py`             | **Entry Point.** PyQt6 uygulamasını (`QApplication`) başlatır.                 |
-| `src/ui/main_window.py`   | **Orchestrator.** `QStackedWidget` ile sayfalar arası geçişi yönetir.          |
-| `src/ui/views/`           | **Sayfalar.** `login_view.py`, `dashboard.py` vb. her ekran ayrı bir dosyadır. |
-| `src/ui/components/`      | **Bileşenler.** Sidebar, Topbar, Snackbar gibi tekrar kullanılabilir parçalar. |
-| `src/ui/styles/`          | **Tema.** Renk paletleri, fontlar ve stil tanımları.                           |
-| `src/services/session.py` | **Güvenlik.** Keyring ile şifre saklama ve otomatik giriş mantığı.             |
-| `src/utils/logger_qt.py`  | **Logging.** Python loglarını `signal` ile arayüze taşıyan köprü.              |
-| `src/core/notifier.py`    | **Backend.** (Eski yapıdan taşınıyor) Ana kontrol mekanizması.                 |
+| Dizin / Dosya                | Sorumluluk (Responsibility)                                                          |
+| :--------------------------- | :----------------------------------------------------------------------------------- |
+| `src/main.py`                | **Entry Point.** PyQt6 uygulamasını (`QApplication`) başlatır.                       |
+| `src/ui/main_window.py`      | **Orchestrator.** `QStackedWidget` ile sayfalar arası geçişi yönetir.                |
+| `src/ui/views/`              | **Sayfalar.** `login_view.py`, `dashboard.py` vb. her ekran ayrı bir dosyadır.       |
+| `src/ui/components/`         | **Bileşenler.** Sidebar, Topbar, Snackbar gibi tekrar kullanılabilir parçalar.       |
+| `src/ui/styles/`             | **Tema.** Renk paletleri, fontlar ve stil tanımları.                                 |
+| `src/services/session.py`    | **Güvenlik.** Keyring ile şifre saklama ve otomatik giriş mantığı.                   |
+| `src/services/pdf_parser.py` | **Veri İşleme.** İndirilen Mezuniyet PDF'inden Regex ile öğrenci verilerini çıkarır. |
+| `src/utils/logger_qt.py`     | **Logging.** Python loglarını `signal` ile arayüze taşıyan köprü.                    |
+| `src/core/notifier.py`       | **Backend.** (Eski yapıdan taşınıyor) Ana kontrol mekanizması.                       |
 
 ## 4. Mevcut İlerleme Durumu (Progress Status)
 
@@ -78,10 +79,8 @@ graph TD
   - Profil bileşeni `QFrame` yapısına çevrilerek layout sorunları giderildi.
   - Stil sızıntılarını önlemek için `#TopBar` ID selector kullanıldı.
   - **Veri Akışı:** Öğrenci numarası ve İsim parametreleri düzeltildi. (Numara doğru alana, İsim sabit "Ad Soyad" olarak ayarlandı).
-
   - "Son Kontrol" saatinin gerçek veriyle güncellenmesi.
   - Bildirim ikonu ve Badge (Okunmamış bildirim sayısı) entegrasyonu.
-
 - **Dashboard (Ana Sayfa) UI:**
   - **Sistem Kontrol:** `_create_control_card` ile modüler yapı. Başlat/Durdur butonu "Burst Limiter" (30sn/4 işlem) spam korumasına sahip.
   - **Geri Sayım:** `_on_timer_tick` ile yönetilen ve `QTimer` kullanan hassas sayaç.
@@ -95,6 +94,11 @@ graph TD
   - Modern görünümde Otomasyon, Bildirim ve Gelişmiş seçenekler blokları oluşturuldu.
   - Otomatik Seçim (Aktif Dönem) için `date_utils.py` ile dinamik hesaplamalar eklendi.
   - Ayarların tutulacağı `settings.json` ile entegrasyon (Okuma/Yazma işlemleri) başarıyla bağlandı.
+- **UI & Bug Fixes:** Arayüz katmanı istenilen seviyeye getirildi. Ekranlar arası geçişler, çift tarayıcı açılma sorunu (Race Condition) ve hafızada asılı kalan durum (state) hataları giderildi.
+- **Data Fetching & Parsing:** Kullanıcının ilk girişinde veya "Bilgilerimi Güncelle" talebinde OBIS üzerinden Mezuniyet PDF'i indirme, `pdfplumber` + Regex ile çizgisiz tablolardan kusursuz veri (AKTS, Dersler, GANO) ayrıştırma mekanizması tamamlandı.
+- **Data Persistence:** Ayrıştırılan veriler başarıyla lokal AppData dizininde `profile.json` olarak saklanıyor.
+- **UI Safety (Lockdown):** Arka planda tarayıcı (Worker) çalışırken, sistem kararlılığını korumak adına Geri Dön, Çıkış Yap ve Güncelle butonlarının bloklanması mekanizması eklendi. Çıkış yapıldığında cooldown süreleri başarıyla sıfırlanıyor.
+- **Topbar & Sidebar:** Profil verilerinin (İsim, Öğrenci No) Topbar'a dinamik aktarımı başarıyla sağlandı. Navigasyon mekanizmaları ve StatusIndicator modülerleştirildi.
 
 ### 🚧 Bekleyenler / Yapılacaklar (Backend Integration Phase)
 
@@ -104,9 +108,7 @@ Artık UI katmanı tamamlanmış olup odak **Core Logic (Backend)** tarafına ka
   - Web Scraping (Playwright) mantığının UI'ı kitlemeden (QThread/Worker) çalışabilmesi.
   - Playwright sonuçlarının, `DashboardView`'daki `_add_timeline_item` vb. metotlara Signal üzerinden bağlanması.
 - [ ] **Data Fetching & State Senkronizasyonu:**
-  - `MainWindow` üzerindeki `DevMode` (Mock Login bypass) kaldırılarak tam güvenli Login akışının test edilmesi.
   - "Son Kontrol", "TopBar Bildirimleri" ve "Dashboard" verilerinin arkadan gelen dinamik verilerle değiştirilmesi.
-- [ ] **Profile Service:** "Bilgilerimi Güncelle" butonunun kullanıcı verilerini gerçekten sunucudan çekip tazelemesi.
 - [ ] **Global Signals:** Uygulama içerisinde dönen backend bildirimlerinin `OBISSnackbar` ile küresel olarak ekrana basılması.
 
 ## 5. Kritik Kurallar (Rules & Guidelines)
@@ -127,6 +129,10 @@ Artık UI katmanı tamamlanmış olup odak **Core Logic (Backend)** tarafına ka
 4.  **Legacy Code (Eski Kod):**
     - `src/ui(eski)/` klasörü referans amaçlı tutulmaktadır. Buradan kod kopyalarken PyQt6 standartlarına (Signal/Slot yapısı) çevirerek al.
     - CustomTkinter kütüphanesi projeden tamamen kaldırılacaktır (Cleanup aşamasında).
+
+5.  **Veri Sorumluluğu (Separation of Concerns):**
+    - Veri çekme ve ilk oluşturma işlemleri `LoginWorker` gibi başlatıcı sınıfların sorumluluğundadır.
+    - Görünümler (Views) prensip olarak sadece var olan veriyi okumalı (`StorageService` üzerinden) veya kullanıcının açık talebiyle (buton tıklaması) worker tetiklemelidir.
 
 ---
 

@@ -39,3 +39,10 @@ class OBISSelectors:
     GRADES_TABLE_ID = "ctl00_ctl00_cphMain_cphContent_rgridOgrenciDersNot_ctl00"
     # Playwright için ID seçici (# ile başlar)
     GRADES_TABLE_SELECTOR = f'#{GRADES_TABLE_ID}'
+
+    # !--- Öğrenci Bilgileri Menüsü ---
+    MENU_PROFILE = '.rtLI:has-text("Mezuniyet İşlemleri")'
+    MENU_PROFILE_INFO = '.rtIn:has-text("Öğrenci Mezuniyet Kontrol")'
+    PROFILE_DOWNLOAD_BUTTON = '#ctl00_ctl00_cphMain_cphContent_myRptViewer_ctl09_ctl04_ctl00_Button'
+    PROFILE_DOWNLOAD_MENU = '#ctl00_ctl00_cphMain_cphContent_myRptViewer_ctl09_ctl04_ctl00_Menu'
+    PROFILE_DOWNLOAD_PDF_OPTION = 'a[title="PDF"]' # Açılan menüdeki tam olarak "PDF" başlıklı seçenek (CSS Selector)

@@ -23,6 +23,7 @@ class LoginWorker(QThread):
     Arka planda BrowserService ile giriş dener.
     """
     result_signal = pyqtSignal(bool, str) # success, message
+    status_signal = pyqtSignal(str) # UI durum bilgisini günceller
 
     def __init__(self, user, pwd):
         super().__init__()
@@ -38,11 +39,49 @@ class LoginWorker(QThread):
             # Login dene
             is_success = browser.login(self.user, self.pwd)
             
-            browser.close_browser()
-            
             if is_success:
+                # Başarılı girişten sonra profile verisini kontrol et
+                profile_dir = os.path.join(os.getenv('LOCALAPPDATA'), 'OBISNotifier')
+                os.makedirs(profile_dir, exist_ok=True)
+                profile_file = os.path.join(profile_dir, 'profile.json')
+                
+                if not os.path.exists(profile_file):
+                    self.status_signal.emit("Profil Bilgileri Alınıyor...")
+                    try:
+                        logging.info("Bilgileri çekme işlemi başlatılıyor...")
+                        pdf_path = browser.download_graduation_pdf()
+                        if pdf_path and os.path.exists(pdf_path):
+                            logging.info(f"PDF başarıyla indi: {pdf_path}")
+                            from services.pdf_parser import PDFParserService
+                            from services.storage import ProfileStorageService
+                            
+                            parser_service = PDFParserService()
+                            storage_service = ProfileStorageService(profile_file)
+                            
+                            parsed_data = parser_service.extract_graduation_data(pdf_path)
+
+                            if storage_service.save_profile_data(parsed_data):
+                                logging.info("Profil JSON dosyasına başarıyla kaydedildi!")
+                            else:
+                                logging.error("Profil JSON kaydedilemedi!")
+                            
+                            try:
+                                os.remove(pdf_path)
+                                logging.info("PDF dosyası silindi.")
+                            except OSError:
+                                logging.error("PDF dosyası silinemedi!")
+                        else:
+                            logging.error("PDF yolu alınamadı veya dosya mevcut değil!")
+                            self.result_signal.emit(False, "Veriler çekilemedi!", {})
+
+                    except Exception as pdf_err:
+                        logging.error(f"Bilgileri çekme sırasında hata: {pdf_err}")
+                        self.result_signal.emit(False, "Veriler çekilemedi!", {})
+                        
+                browser.close_browser()
                 self.result_signal.emit(True, "Giriş Başarılı! Yönlendiriliyorsunuz...")
             else:
+                browser.close_browser()
                 self.result_signal.emit(False, "Giriş Başarısız! Lütfen bilgilerinizi kontrol ediniz.")
                 
         except Exception as e:
@@ -242,7 +281,12 @@ class LoginView(QWidget):
         
         self.worker = LoginWorker(user, pwd)
         self.worker.result_signal.connect(self._on_auto_login_finished)
+        self.worker.status_signal.connect(self._update_btn_text)
         self.worker.start()
+
+    def _update_btn_text(self, text: str):
+        """Worker'dan gelen ara durumları butona yazar."""
+        self.btn_login.setText(f"{text} ")
 
     def _on_login_clicked(self):
         """Giriş butonuna basılınca (Validasyonlu)"""
@@ -274,6 +318,7 @@ class LoginView(QWidget):
         # Worker başlat
         self.worker = LoginWorker(user, pwd)
         self.worker.result_signal.connect(self._on_login_finished)
+        self.worker.status_signal.connect(self._update_btn_text)
         self.worker.start()
         
     def _on_auto_login_finished(self, success: bool, message: str):
@@ -282,10 +327,10 @@ class LoginView(QWidget):
         self.btn_login.setText("Giriş Yap  ")
         
         if success:
-            logging.info("Oto-login başarılı.")
+            logging.info("Auto-login başarılı.")
             self.login_success.emit(self.inp_std.text(), self.inp_pass.text())
         else:
-            logging.warning(f"Oto-login başarısız: {message}")
+            logging.warning(f"Auto-login başarısız: {message}")
             if hasattr(self.window(), "show_snackbar"):
                 self.window().show_snackbar("Oturum süresi dolmuş, lütfen tekrar giriş yapın.", "warning")
             else:

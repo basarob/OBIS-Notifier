@@ -14,6 +14,7 @@ from typing import Optional, Tuple
 APP_NAME = "OBISNotifier"
 APPDATA_DIR = os.path.join(os.getenv('LOCALAPPDATA'), 'OBISNotifier')
 SESSION_FILE = os.path.join(APPDATA_DIR, 'session.json')
+PROFILE_FILE = os.path.join(APPDATA_DIR, 'profile.json')
 
 class SessionManager:
     """
@@ -50,7 +51,7 @@ class SessionManager:
             with open(SESSION_FILE, 'w', encoding='utf-8') as f:
                 json.dump(data, f)
                 
-            logging.info(f"Oturum kaydedildi: {student_id}")
+            logging.info(f"Oturum kaydedildi -> {student_id}")
             return True
             
         except Exception as e:
@@ -97,7 +98,7 @@ class SessionManager:
 
     @staticmethod
     def clear_session() -> None:
-        """Kayıtlı oturumu tamamen siler."""
+        """Kayıtlı oturumu ve profil verilerini tamamen siler."""
         try:
             user = None
             # Şu anki kayıtlı kullanıcıyı bul
@@ -109,17 +110,26 @@ class SessionManager:
                     except json.JSONDecodeError:
                         pass
                 
-                # Dosyayı sil
+                # Oturum dosyasını sil
                 os.remove(SESSION_FILE)
+            
+            # Profil dosyasını sil
+            if os.path.exists(PROFILE_FILE):
+                try:
+                    os.remove(PROFILE_FILE)
+                    logging.info("Profil verileri (profile.json) temizlendi.")
+                except OSError as e:
+                    logging.error(f"Profil dosyası silinirken hata oluştu: {e}")
 
-            # Kasadan sil
+            # Kasadan şifreyi sil
             if user:
                 try:
                     keyring.delete_password(APP_NAME, user)
                 except (keyring.errors.PasswordDeleteError, Exception):
                     pass # Zaten silinmiş olabilir veya erişim yok
             
-            logging.info("Oturum temizlendi.")
+            logging.info("Oturum başarıyla temizlendi.")
                 
         except Exception as e:
             logging.error(f"Oturum silinirken hata: {e}")
+

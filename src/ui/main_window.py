@@ -5,6 +5,7 @@ Sidebar, Topbar ve Değişen İçerik Alanlarını birleştirir.
 
 from PyQt6.QtWidgets import QMainWindow, QWidget, QHBoxLayout, QVBoxLayout, QStackedWidget
 from PyQt6.QtCore import Qt
+from datetime import datetime
 from .styles.theme import OBISStyles
 from .components.sidebar import OBISSidebar
 from .components.topbar import OBISTopBar
@@ -75,32 +76,34 @@ class MainWindow(QMainWindow):
         self.dash_view = DashboardView()
         self.settings_view = SettingsView()
         self.logs_view = LogsView()
+        self.profile_view = ProfileView()
+
+        # Snackbar Sinyal Bağlantıları
+        self.dash_view.snackbar_signal.connect(self.show_snackbar)
+        self.settings_view.snackbar_signal.connect(self.show_snackbar)
+        self.logs_view.snackbar_signal.connect(self.show_snackbar)
+        self.profile_view.snackbar_signal.connect(self.show_snackbar)
+        
+        # Dashboard <-> Sidebar Senkronizasyonu
+        self.dash_view.system_status_changed.connect(self.sidebar.set_system_status)
         
         self.content_stack.addWidget(self.dash_view)      # Index 0
         self.content_stack.addWidget(self.settings_view)  # Index 1
         self.content_stack.addWidget(self.logs_view)      # Index 2
 
-        # Sinyal Bağlantıları
-        self.logs_view.snackbar_signal.connect(self.show_snackbar)
-        
-        # Dashboard <-> Sidebar Senkronizasyonu
-        self.dash_view.system_status_changed.connect(self.sidebar.set_system_status)
-        self.dash_view.snackbar_signal.connect(self.show_snackbar)
-        
         self.right_layout.addWidget(self.content_stack)
         self.app_layout.addWidget(self.right_container)
         self.main_stack.addWidget(self.app_container) # Index 1: Uygulama
         
-        # 3. Profil Ekranı
-        self.profile_view = ProfileView()
-        
-        # Buton Bağlantıları
+        # Profil görünümü sinyal bağlantıları
+        self.profile_view.profile_data_ready.connect(self._on_profile_data_ready)
         self.profile_view.back_requested.connect(self._on_profile_back)
         self.profile_view.logout_requested.connect(self._logout)
         
         self.main_stack.addWidget(self.profile_view) # Index 2: Profil
         
-        logging.info("---------- OBISNotifier Başlatıldı ----------")
+        # Açılış loglaması
+        logging.info(f"---------- OBISNotifier Başlatıldı ({datetime.now().strftime('%d.%m.%Y %H:%M:%S')}) ----------")
         
         # Başlangıç: Otomatik Giriş Kontrolü
         self._check_and_auto_login()
@@ -109,13 +112,13 @@ class MainWindow(QMainWindow):
         self.snackbar = OBISSnackbar(self)
         
         # Mevcut kullanıcı durumu
-        # self.current_user = None
+        self.current_user = None
 
         # --- DEVELOPMENT BYPASS START ---
-        self.current_user = "221805031" # Öğrenci No
-        self.topbar.set_user_info("Başar Orhanbulucu", self.current_user)
-        self.profile_view.set_user_data("Başar Orhanbulucu", self.current_user, "2025-01-01 12:00:00")
-        self.main_stack.setCurrentIndex(1) # Doğrudan uygulamayı aç
+        # self.current_user = "221805031" # Öğrenci No
+        # self.topbar.set_user_info("Başar Orhanbulucu", self.current_user)
+        # self.profile_view.set_user_data("Başar Orhanbulucu", self.current_user, "2025-01-01 12:00:00")
+        # self.main_stack.setCurrentIndex(1) # Doğrudan uygulamayı aç
         # --- DEVELOPMENT BYPASS END ---
 
     def show_snackbar(self, message: str, type: str = "info"):
@@ -126,26 +129,26 @@ class MainWindow(QMainWindow):
     def _check_and_auto_login(self):
         """Kayıtlı oturum varsa otomatik giriş dener."""
         
-        # DEV MODE: Login bypass edildiği için burayı pass geçiyoruz.
-        logging.warning("DevMode ile program başlatıldı.")
-        pass
+        # # DEV MODE: Login bypass edildiği için burayı pass geçiyoruz.
+        # logging.warning("DevMode ile program başlatıldı.")
+        # pass
 
         # Varsayılan olarak Login ekranındayız
-        # self.main_stack.setCurrentIndex(0) 
+        self.main_stack.setCurrentIndex(0) 
         
-        # credentials = SessionManager.load_session()
+        credentials = SessionManager.load_session()
         
-        # if credentials:
-        #     user, pwd = credentials
-        #     logging.info(f"Oto-login tetiklendi: {user}")
-        #     # Login view üzerindeki auto-login metodunu tetikle
-        #     self.login_view.check_auto_login(user, pwd)
-        # else:
-        #     logging.info("Kayıtlı oturum bulunamadı.")
+        if credentials:
+            user, pwd = credentials
+            logging.info(f"Auto-login tetiklendi: {user}")
+            # Login view üzerindeki auto-login metodunu tetikle
+            self.login_view.check_auto_login(user, pwd)
+        else:
+            logging.info("Kayıtlı oturum bulunamadı.")
 
     def _on_login_success(self, user, pwd):
         """Giriş başarılı olunca ana ekrana geç."""
-        logging.info(f"MainWindow: Giriş başarılı -> {user}")
+        logging.info(f"Oturumu açıldı: {user}")
         
         # Oturumu kaydet (Güncel şifre olabilir)
         if SessionManager.save_session(user, pwd):
@@ -154,13 +157,25 @@ class MainWindow(QMainWindow):
         # Kullanıcı durumunu güncelle
         self.current_user = user
         
-        # İsim şimdilik "Ad Soyad" olarak sabit, numara ise user'dan gelir.
-        self.topbar.set_user_info("Ad Soyad", user)
-        self.profile_view.set_user_data("Ad Soyad", user, "Henüz kontrol yapılmadı")
-        
+        # Sadece varsayılan yükleniyor durumu ata (Sinyal geldiğinde asıl veri yazılacak)
+        self.topbar.set_user_info("Yükleniyor...", user)
+
+        # Profile view'a artık set_user_data yerine doğrudan yükleme emri veriyoruz:
+        self.profile_view.load_initial_data(user)
+
         self.main_stack.setCurrentIndex(1) # App göster
         self.content_stack.setCurrentIndex(0) # Dashboard'u aç
         self.topbar.set_title("Ana Menü")
+
+    def _on_profile_data_ready(self, data: dict):
+        """ProfileView veriyi parse ettiğinde (ilk açılışta veya güncellendiğinde) burası çalışır."""
+
+        # PDF'ten alınan veriyi topbar'a yazdır
+        name = data.get("ogrenci_bilgileri", {}).get("ad_soyad", "Bilinmeyen Kullanıcı")
+        
+        # .Topbar'ı güncelle
+        student_id = data.get("ogrenci_bilgileri", {}).get("numara", self.current_user)
+        self.topbar.set_user_info(name, student_id)
 
     def _change_page(self, index: int):
         """Sidebar butonlarına basılınca."""

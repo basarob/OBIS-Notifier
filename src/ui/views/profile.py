@@ -1,34 +1,101 @@
 """
-BU DOSYA: Kullanıcı profil bilgilerini gösterir ve 
+BU DOSYA: Kullanıcı profil bilgilerini gösterir, bilgilerini güncelleme ve 
 çıkış (logout) işlemini yönetir.
 """
 
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel, QFrame
-from PyQt6.QtCore import Qt, pyqtSignal, QSize
+from PyQt6.QtCore import Qt, pyqtSignal, QSize, QTimer, QThread
+import qtawesome as qta
+import datetime
+import os
+import logging
 from ..components.card import OBISCard
 from ..components.button import OBISButton
 from ..styles.theme import OBISColors, OBISFonts, OBISDimens, OBISStyles
 from ..utils.animations import OBISAnimations
-import qtawesome as qta
+from services.storage import ProfileStorageService
+from services.pdf_parser import PDFParserService
+
+PROFILE_FILE = os.path.join(os.getenv('LOCALAPPDATA'), 'OBISNotifier', 'profile.json')
+
+class ProfileUpdateWorker(QThread):
+    """PDF indirme ve ayrıştırma işlemlerini arayüzü dondurmadan arka planda yapar."""
+    result_signal = pyqtSignal(bool, str, dict) 
+
+    def __init__(self, parser_service, storage_service, user: str, pwd: str):
+        super().__init__()
+        self.parser_service = parser_service
+        self.storage_service = storage_service
+        self.user = user
+        self.pwd = pwd
+
+    def run(self):
+        try:
+            logging.info("Profil güncelleme işlemi başlatıldı.")
+            
+            from services.browser import BrowserService
+            browser = BrowserService(headless=True)
+            browser.start_browser()
+            
+            is_success = browser.login(self.user, self.pwd)
+            if not is_success:
+                browser.close_browser()
+                self.result_signal.emit(False, "Giriş başarısız. Oturum bilgilerinizi kontrol edip tekrar deneyin.", {})
+                return
+                
+            pdf_path = browser.download_graduation_pdf()
+            
+            if pdf_path and os.path.exists(pdf_path):
+                logging.info(f"PDF başarıyla indi: {pdf_path}")
+
+                # 1. PDF'i Ayrıştır (Tüm veriler çekilir)
+                parsed_data = self.parser_service.extract_graduation_data(pdf_path)
+                
+                # 2. JSON'a Kaydet (Gelecekte lazım olur diye hepsi kaydedilir)
+                self.storage_service.save_profile_data(parsed_data)
+                
+                # 3. PDF'i temizle
+                try:
+                    os.remove(pdf_path)
+                    logging.info("Geçici PDF silindi.")
+                except OSError as e:
+                    logging.warning(f"Geçici PDF silinemedi: {e}")
+                
+                browser.close_browser()
+                logging.info("Profil bilgileri başarıyla güncellendi!")
+                self.result_signal.emit(True, "Profil bilgileri başarıyla güncellendi!", parsed_data)
+            else:
+                browser.close_browser()
+                self.result_signal.emit(False, "PDF dosyası indirilemedi.", {})
+                
+        except Exception as e:
+            logging.error(f"Profil Worker hatası: {str(e)}")
+            self.result_signal.emit(False, f"Güncelleme sırasında hata oluştu: {str(e)}", {})
 
 class ProfileView(QWidget):
-    """
-    Profile sayfası. Logout butonu içerir.
-    """
     logout_requested = pyqtSignal() # Çıkış isteği
     back_requested = pyqtSignal()   # Geri dön isteği
+    snackbar_signal = pyqtSignal(str, str) # Bildirim yayınlamak için (Mesaj, Tip)
+    profile_data_ready = pyqtSignal(dict) # Profil verisi yüklendiğinde MainWindow'a haber ver
 
     def __init__(self, parent=None):
         super().__init__(parent)
         
+        # Spam koruması
+        self.update_block_until = None
+        
         # Arkaplan
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self.setStyleSheet(OBISStyles.MAIN_BACKGROUND)
-        
-        # Ana Layout (Ekranı ortalar)
+
+        # Ana Layout
         self.main_layout = QVBoxLayout(self)
         self.main_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.main_layout.setContentsMargins(0, 0, 0, 0)
+        
+        # Servisler
+        self.profile_storage = ProfileStorageService(PROFILE_FILE)
+        self.pdf_parser = PDFParserService()
         
         self._setup_ui()
         
@@ -37,11 +104,8 @@ class ProfileView(QWidget):
         super().showEvent(event)
         
         # Animasyonları tetikle
-        # Geri Butonu: Soldan kayarak gelir
         OBISAnimations.slide_in(self.btn_back, direction="right", offset=50, duration=600, delay=100)
         OBISAnimations.fade_in(self.btn_back, duration=500, delay=100)
-        
-        # Kart: Aşağıdan yukarı ve fade efekti
         OBISAnimations.entrance_anim(self.card, delay=200)
 
     def _setup_ui(self):
@@ -52,22 +116,20 @@ class ProfileView(QWidget):
         container_widget.setStyleSheet("background: transparent;")
         
         container_layout = QVBoxLayout(container_widget)
-        container_layout.setSpacing(2) # Buton ile kart arası boşluk
+        container_layout.setSpacing(2) 
         container_layout.setContentsMargins(30, 10, 30, 40)
         
-        # 1. Geri Dön Butonu (Kartın Sol Üstü)
+        # 1. Geri Dön Butonu
         self.btn_back = OBISButton(" Geri Dön", "ghost", icon=qta.icon("fa5s.arrow-left", color=OBISColors.PRIMARY))
-        # Buton stilini özelleştir
         self.btn_back.setStyleSheet(OBISStyles.BACK_BUTTON)
         self.btn_back.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_back.clicked.connect(self.back_requested.emit)
-        self.btn_back.setFixedWidth(120) # Sola yaslanması için sınırlı genişlik
+        self.btn_back.setFixedWidth(120) 
 
         # 2. Profil Kartı
         self.card = OBISCard(has_shadow=True)
         self.card.setFixedSize(400, 450)
         
-        # Kart stili
         self.card.setStyleSheet(f"""
             OBISCard {{
                 background-color: {OBISColors.SURFACE};
@@ -78,16 +140,12 @@ class ProfileView(QWidget):
         
         self._setup_card_content()
         
-        # Konteynere ekle
         container_layout.addWidget(self.btn_back, 0, Qt.AlignmentFlag.AlignLeft)
         container_layout.addWidget(self.card)
-        
-        # Ana Layout'a konteyneri ekle
         self.main_layout.addWidget(container_widget)
 
     def _setup_card_content(self):
         """Kartın iç yapısını oluşturur."""
-        # Kart içeriği için container
         container = QWidget()
         container.setStyleSheet("background-color: transparent;")
         
@@ -96,13 +154,8 @@ class ProfileView(QWidget):
         layout.setSpacing(0)
         layout.setContentsMargins(25, 20, 25, 20)
         
-        # 1. Avatar
         avatar = self._create_avatar_section()
-        
-        # 2. Üye Bilgileri
         self._create_info_section()
-        
-        # 3. Butonlar
         self._create_actions_section()
         
         layout.addWidget(avatar, 0, Qt.AlignmentFlag.AlignCenter)
@@ -140,18 +193,17 @@ class ProfileView(QWidget):
 
     def _create_info_section(self):
         """İsim, numara ve tarih labellarını oluşturur."""
-        self.lbl_name = QLabel("Ad Soyad")
+        self.lbl_name = QLabel("Yükleniyor...")
         self.lbl_name.setFont(OBISFonts.get_font(18, "bold"))
         self.lbl_name.setStyleSheet(f"color: {OBISColors.TEXT_PRIMARY}; margin-top: 20px;")
         self.lbl_name.setAlignment(Qt.AlignmentFlag.AlignCenter)
         
-        self.lbl_id = QLabel("Numara")
+        self.lbl_id = QLabel("Numara: -")
         self.lbl_id.setFont(OBISFonts.BODY)
         self.lbl_id.setStyleSheet(f"color: {OBISColors.TEXT_SECONDARY}")
         self.lbl_id.setAlignment(Qt.AlignmentFlag.AlignCenter)
         
-        # Son Güncelleme
-        self.lbl_updated = QLabel("Tarih")
+        self.lbl_updated = QLabel("SON GÜNCELLEME: -")
         self.lbl_updated.setFont(OBISFonts.get_font(8, "bold"))
         self.lbl_updated.setStyleSheet(f"color: {OBISColors.TEXT_GHOST}; letter-spacing: 0.5px;") 
         self.lbl_updated.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -162,8 +214,8 @@ class ProfileView(QWidget):
         self.btn_update = OBISButton(" Bilgilerimi Güncelle", "primary", icon=qta.icon("fa5s.sync-alt", color="white"))
         self.btn_update.setFixedHeight(50) 
         self.btn_update.setFont(OBISFonts.get_font(11, "bold"))
+        self.btn_update.clicked.connect(self._on_update_button_clicked)
         
-        # Ayırıcı çizgi
         self.line_sep = QFrame()
         self.line_sep.setFrameShape(QFrame.Shape.HLine)
         self.line_sep.setStyleSheet(f"color: {OBISColors.LINE}; max-height: 5px;")
@@ -172,13 +224,107 @@ class ProfileView(QWidget):
         # 2. Çıkış Yap
         self.btn_logout = OBISButton(" Çıkış Yap", "ghost", icon=qta.icon("fa5s.sign-out-alt", color=OBISColors.DANGER))
         self.btn_logout.setStyleSheet(OBISStyles.LOGOUT_BUTTON)
-        self.btn_logout.clicked.connect(self.logout_requested.emit)
+        self.btn_logout.clicked.connect(self._on_logout_clicked)
 
-    def set_user_data(self, name: str, student_num: str, last_update: str = ""):
-        """Kullanıcı bilgilerini günceller."""
-        if name:
-            self.lbl_name.setText(name)
-        if student_num:
-            self.lbl_id.setText(f"Öğrenci Numarası: {student_num}")
-        if last_update:
-            self.lbl_updated.setText(f"SON GÜNCELLEME: {last_update}")
+    def load_initial_data(self, current_user_id: str):
+        """
+        Giriş başarılı olduktan sonra MainWindow tarafından çağrılır.
+        Lokal dosyayı okur, varsa arayüzü doldurur. Yoksa default değer atar.
+        """
+        profile_data = self.profile_storage.load_profile_data()
+        
+        if profile_data:
+            # Json varsa UI'a yaz ve MainWindow'a veriyi gönder
+            self.update_ui_with_data(profile_data)
+            self.profile_data_ready.emit(profile_data)
+        else:
+            # Json okunamadıysa veya silindiyse varsayılan görünüm bırakılır
+            logging.warning("ProfileView: JSON bulunamadı, varsayılan görünüm yükleniyor.")
+            self.lbl_name.setText("Bilinmeyen Kullanıcı")
+            self.lbl_id.setText(f"Öğrenci Numarası: {current_user_id}")
+            self.lbl_updated.setText("SON GÜNCELLEME: Bulunamadı")
+
+    def _on_update_button_clicked(self):
+        """Kullanıcı 'Bilgilerimi Güncelle' butonuna açıkça bastığında çalışır."""
+        if self.update_block_until and datetime.datetime.now() < self.update_block_until:
+            kalan_saniye = int((self.update_block_until - datetime.datetime.now()).total_seconds())
+            dakika = kalan_saniye // 60
+            saniye = kalan_saniye % 60
+            self.snackbar_signal.emit(f"Lütfen tekrar güncellemek için {dakika} dk {saniye} sn bekleyin.", "warning")
+            return
+
+        # 1. Güncelleme Butonunu Blokla
+        self.btn_update.setEnabled(False)
+        self.btn_update.setText(" Bilgiler Güncelleniyor...")
+        self.btn_update.setIcon(qta.icon("fa5s.sync", color="white", animation=qta.Spin(self.btn_update)))
+        
+        # 2. Geri Dön Butonunu Blokla
+        self.btn_back.setEnabled(False)
+        self.btn_back.setCursor(Qt.CursorShape.ArrowCursor)
+
+        # 3. Çıkış Yap Butonunu Blokla
+        self.btn_logout.setEnabled(False)
+        self.btn_logout.setCursor(Qt.CursorShape.ArrowCursor)
+
+        from services.session import SessionManager
+        credentials = SessionManager.load_session()
+        if not credentials:
+            self.snackbar_signal.emit("Oturum bilgileri bulunamadı, lütfen tekrar giriş yapın.", "error")
+            self._reset_update_button()
+            return
+            
+        user, pwd = credentials
+        
+        self.worker = ProfileUpdateWorker(self.pdf_parser, self.profile_storage, user, pwd)
+        self.worker.result_signal.connect(self._on_update_completed)
+        self.worker.start()
+
+    def _on_update_completed(self, success: bool, message: str, data: dict):
+        """Worker işlemi bitirdiğinde (başarılı/başarısız) tetiklenir."""
+        if success:
+            self.update_block_until = datetime.datetime.now() + datetime.timedelta(minutes=10)
+            
+            # Arayüzü yeni verilerle doldur ve MainWindow'a bildir
+            self.update_ui_with_data(data)
+            self.profile_data_ready.emit(data)
+            self.snackbar_signal.emit(message, "success")
+        else:
+            self.snackbar_signal.emit(message, "error")
+
+        self._reset_update_button()
+
+    def _reset_update_button(self):
+        """Butonları normal tıklanabilir haline geri döndürür."""
+        # 1. Güncelle Butonunu Aç
+        self.btn_update.setEnabled(True)
+        self.btn_update.setText(" Bilgilerimi Güncelle")
+        self.btn_update.setIcon(qta.icon("fa5s.sync-alt", color="white"))
+        
+        # 2. Geri Dön Butonunu Aç
+        self.btn_back.setEnabled(True)
+        self.btn_back.setCursor(Qt.CursorShape.PointingHandCursor)
+
+        # 3. Çıkış Yap Butonunu Aç
+        self.btn_logout.setEnabled(True)
+        self.btn_logout.setCursor(Qt.CursorShape.PointingHandCursor)
+
+    def update_ui_with_data(self, data: dict):
+        """Gelen JSON verisi ile ekrandaki etiketleri günceller."""
+        ogrenci = data.get("ogrenci_bilgileri", {})
+
+        ad_soyad = ogrenci.get("ad_soyad", "Bilinmeyen Kullanıcı")
+        numara = ogrenci.get("numara", "")
+        last_updated = data.get("son_guncelleme", "-")
+
+        self.lbl_name.setText(ad_soyad)
+        if numara:
+            self.lbl_id.setText(f"Öğrenci Numarası: {numara}")
+        self.lbl_updated.setText(f"SON GÜNCELLEME: {last_updated}")
+
+    def _on_logout_clicked(self):
+        """Çıkış yapılırken sayfanın iç durumunu (cooldown vb.) sıfırlar ve ana pencereye sinyal gönderir."""
+        # 1. 10 dakikalık blokajı sıfırla
+        self.update_block_until = None 
+        
+        # 2. Asıl çıkış işlemini yapması için MainWindow'a haber ver
+        self.logout_requested.emit()

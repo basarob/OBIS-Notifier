@@ -51,6 +51,8 @@ from utils.date_utils import generate_semester_list, get_current_semester
 SETTINGS_FILE = os.path.join(get_user_data_dir(), "settings.json")
 
 class SettingsView(QWidget):
+    snackbar_signal = pyqtSignal(str, str)
+    
     def __init__(self, parent=None):
         super().__init__(parent)
         self._init_scroll_area()
@@ -537,12 +539,10 @@ class SettingsView(QWidget):
             has_error = True
             
         if has_error:
-            if not hasattr(self, 'snackbar'):
-                self.snackbar = OBISSnackbar(self.parent() or self)
-            self.snackbar.show_message("Lütfen geçerli bir e-posta adresi ve şifre giriniz.", OBISSnackbar.ERROR)
+            self.snackbar_signal.emit("Lütfen geçerli bir e-posta adresi ve şifre giriniz.", "error")
             return
             
-        # Test Maili Gönderimi Başlat
+        # .Test Maili Gönderimi Başlat
         self.btn_test_mail.setEnabled(False)
         self.btn_test_mail.setText("Gönderiliyor...")
         
@@ -554,13 +554,7 @@ class SettingsView(QWidget):
         self.btn_test_mail.setEnabled(True)
         self.btn_test_mail.setText("Bildirimi Test Et")
         
-        if not hasattr(self, 'snackbar'):
-            self.snackbar = OBISSnackbar(self.parent() or self)
-            
-        if success:
-            self.snackbar.show_message(message, OBISSnackbar.SUCCESS)
-        else:
-            self.snackbar.show_message(message, OBISSnackbar.ERROR)
+        self.snackbar_signal.emit(message, "success" if success else "error")
 
     def _toggle_semester_mode(self, checked):
         """Otomatik dönem seçeneği değiştiğinde ComboBox'ı günceller."""
@@ -629,10 +623,6 @@ class SettingsView(QWidget):
         self._toggle_semester_mode(self.sw_auto_semester.isChecked())
 
     def save_settings(self):
-        # Snackbar instance kontrolü
-        if not hasattr(self, 'snackbar'):
-            self.snackbar = OBISSnackbar(self.parent() or self)
-
         methods = []
         if self.sw_mail.isChecked(): methods.append("email")
 
@@ -641,10 +631,10 @@ class SettingsView(QWidget):
             email = self.inp_gmail.text()
             pwd = self.inp_app_pass.text()
             if not email or "@" not in email:
-                self.snackbar.show_message("Geçerli bir E-posta adresi giriniz.", OBISSnackbar.ERROR)
+                self.snackbar_signal.emit("Geçerli bir E-posta adresi giriniz.", "error")
                 return
             if not pwd:
-                self.snackbar.show_message("Gmail uygulama şifresi zorunludur.", OBISSnackbar.ERROR)
+                self.snackbar_signal.emit("Gmail uygulama şifresi zorunludur.", "error")
                 return
 
         try:
@@ -680,9 +670,9 @@ class SettingsView(QWidget):
                 
             set_auto_start(self.sw_autostart.switch_widget.isChecked())
             
-            # Başarı Bildirimi (Snackbar ile)
-            self.snackbar.show_message("Ayarlar başarıyla kaydedildi.", OBISSnackbar.SUCCESS)
+            # Başarı Sinyali
+            self.snackbar_signal.emit("Ayarlar başarıyla kaydedildi.", "success")
             
         except Exception as e:
             logging.error(f"Ayarlar kaydedilemedi: {e}")
-            self.snackbar.show_message(f"Kaydetme hatası: {str(e)}", OBISSnackbar.ERROR)
+            self.snackbar_signal.emit(f"Kaydetme hatası: {str(e)}", "error")
