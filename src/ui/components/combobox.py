@@ -91,6 +91,10 @@ class OBISCombobox(QComboBox):
         # Sağ Ok İkonu Ekleme (Sahte down-arrow)
         self._add_right_caret()
 
+    def wheelEvent(self, event):
+        """Fare tekerleği ile değer değiştirmeyi engeller. Sadece tıklayarak seçim yapılabilir."""
+        event.ignore()
+
     def _add_right_caret(self):
         """Standard SVG yerine QTAwesome kullanan açılır simge"""
         from PyQt6.QtWidgets import QLabel

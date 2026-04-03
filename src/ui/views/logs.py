@@ -274,3 +274,7 @@ class LogsView(QWidget):
     def _clear_logs(self):
         self.table.setRowCount(0)
         self.snackbar_signal.emit("Log kayıtları başarıyla temizlendi.", "success")
+
+    def reset_state(self):
+        """Çıkış yapıldığında log tablosunu sessizce temizler."""
+        self.table.setRowCount(0)

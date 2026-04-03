@@ -1,70 +1,72 @@
 """
-BU DOSYA: Backend servislerini (OBISNotifier) ayrı bir thread
-üzerinde çalıştırır. UI'ın donmasını engeller.
+BU DOSYA: Arka plan işlemlerini (Worker Thread) yönetir.
+Uzun süren UI-Bloke edici işlemleri (Not kontrolü, E-posta testi vb.)
+ayrı bir thread üzerinde asenkron olarak yürüterek ana döngüyü rahatlatır.
 """
 
 from PyQt6.QtCore import QThread, pyqtSignal
-from typing import Dict, Any
+import time
+import logging
 
-# Core import (Backend mantığı)
-# .try bloğu, tasarım testi yaparken backend olmadan
-# UI'ı çalıştırmaya yarar
+# Core mantığı
 try:
     from core.notifier import OBISNotifier
 except ImportError:
     OBISNotifier = None
 
-class OBISWorker(QThread):
+from services.notification import NotificationService
+
+class CheckWorker(QThread):
     """
-    Arka planda çalışan işçi thread (Worker Thread).
-    Backend işlemlerini yürütür ve Sinyaller ile UI'a bilgi taşır.
+    Arka planda tek bir not kontrol döngüsünü çalıştıran QThread.
+    Her çalıştırıldığında OBISNotifier.check_grades_once() metodunu çalıştırır
+    ve sonucunu sinyal ile Dashboard'a bildirir.
     """
-    log_signal = pyqtSignal(str, str) # level, message
-    status_signal = pyqtSignal(bool) # is_running
-    finished_signal = pyqtSignal()
-    
-    def __init__(self, settings: Dict[str, Any]):
+    # Sinyal: (success: bool, should_stop: bool, changes: list, message: str, elapsed: float)
+    check_finished = pyqtSignal(bool, bool, list, str, float)
+
+    def __init__(self, notifier: 'OBISNotifier'):
         super().__init__()
-        self.settings = settings
-        self.notifier = None
-        self._is_running = False
-        
+        self.notifier = notifier
+
     def run(self):
-        """Thread'in ana çalışma döngüsü (Entry Point)."""
-        if OBISNotifier is None:
-            self.log_signal.emit("ERROR", "Backend core modülleri bulunamadı!")
-            return
-
-        self._is_running = True
-        self.status_signal.emit(True)
-        self.log_signal.emit("INFO", "Worker thread başlatıldı...")
-        
+        """Thread'in ana çalışma noktası. Tek bir kontrol döngüsü yürütür."""
+        start_time = time.time()
         try:
-            # Backend'i başlat
-            # Geri bildirim (Callback) fonksiyonlarını bağla
-            self.settings["status_callback"] = self._on_status_update
-            self.settings["notification_callback"] = self._on_notification
-            
-            self.notifier = OBISNotifier(self.settings)
-            self.notifier.start_monitoring() # Bloklayan çağrı (döngü burada başlar)
-            
+            result = self.notifier.check_grades_once()
+            elapsed = time.time() - start_time
+            self.check_finished.emit(
+                result.get("success", False),
+                result.get("should_stop", False),
+                result.get("changes", []),
+                result.get("message", ""),
+                elapsed
+            )
         except Exception as e:
-            self.log_signal.emit("ERROR", f"Kritik Hata: {str(e)}")
-        finally:
-            self._is_running = False
-            self.status_signal.emit(False)
-            self.log_signal.emit("INFO", "Worker thread durduruldu.")
-            
-    def stop(self):
-        """Thread'i güvenli bir şekilde durdurur."""
-        if self.notifier:
-            self.notifier.stop_monitoring()
-        self.terminate() # Eğer normal durmazsa zorla durdur (tercih edilmez)
+            elapsed = time.time() - start_time
+            logging.error(f"CheckWorker beklenmeyen hata: {e}")
+            self.check_finished.emit(False, False, [], str(e), elapsed)
 
-    def _on_status_update(self, msg: str):
-        """Backend'den gelen durum mesajlarını UI'a iletir."""
-        self.log_signal.emit("INFO", msg)
+class TestMailWorker(QThread):
+    """
+    E-Posta bildirim sistemini asenkron test eden QThread sınıfı.
+    """
+    result_signal = pyqtSignal(bool, str)
 
-    def _on_notification(self, title, msg):
-        """Backend'den gelen bildirimleri UI'a iletir."""
-        self.log_signal.emit("SUCCESS", f"{title}: {msg}")
+    def __init__(self, email: str, pwd: str):
+        super().__init__()
+        self.email = email
+        self.pwd = pwd
+
+    def run(self):
+        try:
+            service = NotificationService(
+                sender_email=self.email,
+                sender_password=self.pwd,
+                notification_methods=["email"]
+            )
+            service.send_test_notification()
+            self.result_signal.emit(True, "Test bildirimi başarıyla gönderildi.")
+        except Exception as e:
+            logging.error(f"TestMailWorker Hatası: {e}")
+            self.result_signal.emit(False, "Test maili gönderilemedi. Bilgileri/İnternet bağlantınızı kontrol edin.")

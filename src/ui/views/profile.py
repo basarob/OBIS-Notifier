@@ -83,6 +83,7 @@ class ProfileView(QWidget):
         
         # Spam koruması
         self.update_block_until = None
+        self._is_system_running = False  # Sistem durumu bayrağı
         
         # Arkaplan
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
@@ -246,6 +247,11 @@ class ProfileView(QWidget):
 
     def _on_update_button_clicked(self):
         """Kullanıcı 'Bilgilerimi Güncelle' butonuna açıkça bastığında çalışır."""
+        # Sistem çalışıyorsa engelle ve uyar
+        if self._is_system_running:
+            self.snackbar_signal.emit("Sistem çalışırken profil güncellenemez. Önce sistemi durdurun.", "warning")
+            return
+
         if self.update_block_until and datetime.datetime.now() < self.update_block_until:
             kalan_saniye = int((self.update_block_until - datetime.datetime.now()).total_seconds())
             dakika = kalan_saniye // 60
@@ -328,3 +334,11 @@ class ProfileView(QWidget):
         
         # 2. Asıl çıkış işlemini yapması için MainWindow'a haber ver
         self.logout_requested.emit()
+
+    def set_system_status(self, is_running: bool):
+        """
+        Sistem çalışma durumunu kaydeder.
+        Güncelle butonu tıklanabilir kalır ama snackbar ile uyarır.
+        Çıkış butonu her zaman aktif kalır (güvenli kapanma sağlanır).
+        """
+        self._is_system_running = is_running

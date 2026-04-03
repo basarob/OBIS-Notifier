@@ -114,6 +114,10 @@ class OBISButton(QPushButton):
         """Buton tipini ve stilini dinamik olarak günceller."""
         self.button_type = new_type
         self._apply_style()
+        self.style().unpolish(self)
+        self.style().polish(self)
+        self.update()
+        self.repaint()
 
 class OBISIconButton(QPushButton):
     """

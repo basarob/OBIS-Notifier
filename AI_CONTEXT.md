@@ -8,7 +8,7 @@
 
 - **Proje Adı:** OBIS Notifier (v3.0 - PyQt6 Migration)
 - **Tanım:** ADÜ Öğrenci Bilgi Sistemi (OBIS) üzerindeki notları periyodik olarak tarayan, değişiklikleri tespit eden ve kullanıcıya masaüstü/e-posta yoluyla bildiren lokal otomasyon aracı.
-- **Mevcut Durum:** CustomTkinter yapısından **PyQt6** yapısına geçiş aşamasındadır.
+- **Mevcut Durum:** V3 (PyQt6) arayüz mimarisi ve not kontrol entegrasyonu tamamlanmıştır. Uygulama test ve stabilizasyon aşamasındadır.
 - **Dağıtım Türü:** Tekil Windows Uygulaması (`EXE`).
 
 ## 2. Teknoloji Yığını (Tech Stack)
@@ -19,23 +19,24 @@
 | **UI**       | **PyQt6**             | Modern, Native-feel arayüz framework'ü.                  |
 | **Scraping** | Playwright (Sync API) | Güvenilir ve headless tarayıcı otomasyonu.               |
 | **Security** | Keyring               | Şifrelerin güvenli işletim sistemi kasasında saklanması. |
-| **Schedule** | Schedule              | Periyodik görev zamanlayıcı.                             |
+| **Schedule** | QTimer                | UI tarafında asenkron periyodik görev zamanlayıcı.         |
 | **Icons**    | **Qtawesome**         | FontAwesome ikonlarını native PyQt ikonlarına çevirir.   |
 | **Build**    | PyInstaller           | Uygulamayı tek dosya EXE haline getirmek.                |
 
 ## 3. Mimari Genel Bakış (PyQt6 Architecture)
 
-Proje **Modüler Monolitik** yapıdadır ve UI katmanı tamamen ayrılmıştır.
+Proje **Modüler Monolitik Component (Bileşen)** yapısındadır. UI "orchestrator (yönlendirici)" görünüm sınıfları (Views) ile tasarımsal bileşen sınıfları (Cards) tamamen ayrılmıştır.
 
 ```mermaid
 graph TD
-    User((Kullanıcı)) --> Views[UI Views (PyQt6)]
+    User((Kullanıcı)) --> Views[UI Controllers/Views]
+    Views --> Component[UI Cards (Arayüz Bileşenleri)]
     Views --> MainWindow[Main Window Orchestrator]
-    MainWindow --> Core[Çekirdek Katmanı (src/core)]
+    Views --> Worker[QThread Workerlar]
+    Worker --> Core[Çekirdek Katmanı (src/core)]
 
-    subgraph UI Layer
-    Views --> Components[Custom Components]
-    Components --> Styles[Style & Themes]
+    subgraph Component Layer
+    Component --> Styles[Style & Themes]
     end
 
     subgraph Core Logic
@@ -45,95 +46,52 @@ graph TD
     end
 ```
 
-### 📂 Dosya Yapısı (Hedef Yapı)
+### 📂 Dosya Yapısı (Mevcut Yapı)
 
 | Dizin / Dosya                | Sorumluluk (Responsibility)                                                          |
 | :--------------------------- | :----------------------------------------------------------------------------------- |
 | `src/main.py`                | **Entry Point.** PyQt6 uygulamasını (`QApplication`) başlatır.                       |
 | `src/ui/main_window.py`      | **Orchestrator.** `QStackedWidget` ile sayfalar arası geçişi yönetir.                |
-| `src/ui/views/`              | **Sayfalar.** `login_view.py`, `dashboard.py` vb. her ekran ayrı bir dosyadır.       |
-| `src/ui/components/`         | **Bileşenler.** Sidebar, Topbar, Snackbar gibi tekrar kullanılabilir parçalar.       |
-| `src/ui/styles/`             | **Tema.** Renk paletleri, fontlar ve stil tanımları.                                 |
+| `src/ui/views/*.py`          | **Sayfalar (Denetçiler).** `dashboard.py`, `settings.py` sadece mantık ve iş akışı yönetir. |
+| `src/ui/views/*_cards.py`    | **Sayfa Bileşenleri.** UI Çizimlerini, Layout'ları kapsülleyen Component Sınıfları.    |
+| `src/ui/utils/worker.py`     | **Asenkron Köprü.** Backend (`OBISNotifier`) ile UI'ı bağlayan `QThread` sınıfları. |
+| `src/ui/styles/`             | **Tema.** Renk paletleri (`OBISColors`), fontlar ve stil tanımları.                  |
 | `src/services/session.py`    | **Güvenlik.** Keyring ile şifre saklama ve otomatik giriş mantığı.                   |
 | `src/services/pdf_parser.py` | **Veri İşleme.** İndirilen Mezuniyet PDF'inden Regex ile öğrenci verilerini çıkarır. |
-| `src/utils/logger_qt.py`     | **Logging.** Python loglarını `signal` ile arayüze taşıyan köprü.                    |
-| `src/core/notifier.py`       | **Backend.** (Eski yapıdan taşınıyor) Ana kontrol mekanizması.                       |
 
 ## 4. Mevcut İlerleme Durumu (Progress Status)
 
 ### ✅ Tamamlananlar (Completed)
 
-- **Modern Login Ekranı:** PyQt6 ile yeniden yazıldı. Validasyonlar ve animasyonlar eklendi.
-- **Browser & Login Entegrasyonu:** Mevcut `BrowserService` ile yeni UI arasındaki bağlantı sağlandı.
-- **Güvenlik (Keyring):** Şifreler artık düz metin olarak değil, işletim sistemi anahtarlığında (`keyring` kütüphanesi) saklanıyor.
-- **Auto-Login:** Uygulama açılışında kayıtlı oturum varsa otomatik giriş deneniyor.
-- **Logout:** Profil üzerinden çıkış yapıldığında session temizleniyor.
-- **Profil Sayfası:** `LoginView` ile birebir tasarımsal bütünlük sağlandı. Kullanıcı bilgileri kartı ve çıkış fonksiyonu tamamlandı.
-- **Advanced Animations:** `OBISAnimations` sınıfı `QParallelAnimationGroup` (Paralel Animasyon) desteği ile güncellendi. "Nefes Alma (Breathing)" efektleri performant hale getirildi.
-- **Sidebar (Refactored):**
-  - Header (Logo), Navigasyon ve Footer (Sistem Durumu) olarak parçalandı.
-  - **`StatusIndicator`**: Işıklı bildirim noktası için `QLabel` yerine özel `QWidget` (Custom Paint) yazılarak performans artırıldı.
-  - Kod tekrarı önlendi ve stil tanımları temizlendi.
-- **Topbar (Modernized):**
-  - Sol (Başlık + Son Kontrol) ve Sağ (Bildirim + Profil) olarak ikiye ayrıldı.
-  - Profil bileşeni `QFrame` yapısına çevrilerek layout sorunları giderildi.
-  - Stil sızıntılarını önlemek için `#TopBar` ID selector kullanıldı.
-  - **Veri Akışı:** Öğrenci numarası ve İsim parametreleri düzeltildi. (Numara doğru alana, İsim sabit "Ad Soyad" olarak ayarlandı).
-  - "Son Kontrol" saatinin gerçek veriyle güncellenmesi.
-  - Bildirim ikonu ve Badge (Okunmamış bildirim sayısı) entegrasyonu.
-- **Dashboard (Ana Sayfa) UI:**
-  - **Sistem Kontrol:** `_create_control_card` ile modüler yapı. Başlat/Durdur butonu "Burst Limiter" (30sn/4 işlem) spam korumasına sahip.
-  - **Geri Sayım:** `_on_timer_tick` ile yönetilen ve `QTimer` kullanan hassas sayaç.
-  - **Manuel Kontrol:** `_check_now` metodu 10dk süre sınırı ve "Cooldown" kontrolü içeriyor.
-  - **Timeline:** `_create_timeline_card` ile scroll edilebilir anlık durum akışı.
-- **Logs (Log Kayıtları):**
-  - Sanal terminal görünümü (Log Table).
-  - Anlık akış (Live Stream) ve renklendirilmiş log seviyeleri.
-  - Arama ve Temizleme fonksiyonları.
-- **Settings (Ayarlar):**
-  - Modern görünümde Otomasyon, Bildirim ve Gelişmiş seçenekler blokları oluşturuldu.
-  - Otomatik Seçim (Aktif Dönem) için `date_utils.py` ile dinamik hesaplamalar eklendi.
-  - Ayarların tutulacağı `settings.json` ile entegrasyon (Okuma/Yazma işlemleri) başarıyla bağlandı.
-- **UI & Bug Fixes:** Arayüz katmanı istenilen seviyeye getirildi. Ekranlar arası geçişler, çift tarayıcı açılma sorunu (Race Condition) ve hafızada asılı kalan durum (state) hataları giderildi.
-- **Data Fetching & Parsing:** Kullanıcının ilk girişinde veya "Bilgilerimi Güncelle" talebinde OBIS üzerinden Mezuniyet PDF'i indirme, `pdfplumber` + Regex ile çizgisiz tablolardan kusursuz veri (AKTS, Dersler, GANO) ayrıştırma mekanizması tamamlandı.
-- **Data Persistence:** Ayrıştırılan veriler başarıyla lokal AppData dizininde `profile.json` olarak saklanıyor.
-- **UI Safety (Lockdown):** Arka planda tarayıcı (Worker) çalışırken, sistem kararlılığını korumak adına Geri Dön, Çıkış Yap ve Güncelle butonlarının bloklanması mekanizması eklendi. Çıkış yapıldığında cooldown süreleri başarıyla sıfırlanıyor.
-- **Topbar & Sidebar:** Profil verilerinin (İsim, Öğrenci No) Topbar'a dinamik aktarımı başarıyla sağlandı. Navigasyon mekanizmaları ve StatusIndicator modülerleştirildi.
+- **Frontend & Backend Ayrımı:** Arayüz (`PyQt6`) ve İş mantığı (`Playwright/OBISNotifier`) `CheckWorker (QThread)` sayesinde birbirini bloke etmez hale getirildi. 
+- **Modern Login & Oturum Yönetimi:** Güvenli Keyring desteği, 3 başarısız deneme limiti, auto-login ve cache temizlik tabanlı temiz çıkış (Logout) sistemi tamamlandı.
+- **Dashboard Component Refactoring:** 800+ satırlık obez dashboard dosyası sadece bir denetleyiciye (Controller) dönüştürüldü. Çizim mantığı `ControlCard`, `StatsCard` ve `TimelineCard` sınıflarına bölündü.
+- **Settings Component Refactoring:** Aynı şekilde 700+ satırlık ayarlar, `AutomationCard`, `NotificationCard`, `AdvancedCard` modüllerine ayrılarak temizlendi. Hardcode renk/pozisyon tanımları silindi ve projede tam anlamıyla **Theme Engine (`OBISColors`)** kullanılmaya başlandı.
+- **Tasarım Elementleri & Event Engellemeleri:** Ayarlar sayfasındaki CheckBox/ComboBox yapılarının Scroll sırasında yanlışlıkla değişmesi (WheelEvent engellemesi) gibi UX bugları çözüldü. Buton stili değişimindeki boya kalıntıları (Rendering Bug) `unpolish/polish` mantığıyla kalıcı olarak yok edildi.
+- **Timeline & Log Akışı:** Uygulama içinde manuel ve otomatik yapılan işlemler zaman damgasıyla Timeline bileşenini ve Logs ekranını anlık olarak güncelliyor. 
+- **Email Sistemi (Tamamen Entegre):** Yeni bir ders notu yakalandığında veya test talebi tetiklendiğinde `NotificationService` vasıtasıyla güzel gözüken HTML tabanlı mail şablonlarıyla kullanıcılara not fırlatılabiliyor. 
 
-### 🚧 Bekleyenler / Yapılacaklar (Backend Integration Phase)
+### 🚧 Bekleyenler / Eksiklikler (Shortcomings & Future Works)
 
-Artık UI katmanı tamamlanmış olup odak **Core Logic (Backend)** tarafına kaydırılmalıdır:
+Projede şu anda "hata" bulunmamakta ancak sistemin ölçeklenebilirliği (Scalability) ve uzun ömürlülüğü açısından henüz **eksik** olan noktalar mevcuttur:
 
-- [ ] **Notifier Service Migration (`src/core/notifier.py`):**
-  - Web Scraping (Playwright) mantığının UI'ı kitlemeden (QThread/Worker) çalışabilmesi.
-  - Playwright sonuçlarının, `DashboardView`'daki `_add_timeline_item` vb. metotlara Signal üzerinden bağlanması.
-- [ ] **Data Fetching & State Senkronizasyonu:**
-  - "Son Kontrol", "TopBar Bildirimleri" ve "Dashboard" verilerinin arkadan gelen dinamik verilerle değiştirilmesi.
-- [ ] **Global Signals:** Uygulama içerisinde dönen backend bildirimlerinin `OBISSnackbar` ile küresel olarak ekrana basılması.
+- [ ] **Canlı Ortam Doğrulaması:** Uygulamanın en stresli işlevlerinden biri "Mevcut notlar üzerinde gerçekten değişiklik/yeni not girildiğinde" programın diff (fark) alıp maile yansıtmasıdır. Bu bir öğrenci için henüz canlı veride **test edilmemiştir**.
+- [ ] **JSON Ölçeklenebilirliği:** Veriler (`grades_data.json`, `profile.json`, `settings.json`) JSON olarak saklanmaktadır. Eğer öğrencinin çok fazla not geçmişi veya ders durumu olursa zamanla parsing ağırlığı oluşturabilir. Gelecekte SQLite'a geçiş gerekebilir.
+- [ ] **Log Ekranı Şişmesi:** `LogsView` ekranında on binlerce satır log yazılırsa arayüz performans kaybı yaşayabilir (QTableWidget render sıkıntısı). Satır bazlı *Pagination (Sayfalama)* veya eski satırları düşüren *Garbage Collector* yazılması düşünülebilir.
+- [ ] **Rate-Limiting Exceed Koruması:** Eğitmen aynı ders notunu üst üste 1 saat içerisinde 5 kere düzeltirse, sistem aynı e-postayı 5 kere atar. Zeki bildirim filtreleme (Smart grouping / Digest) mekanizması yapısı ileride eksikliği hissedilecek bir noktadır.
+- [ ] **Gelişmiş Error-Handling:** OBİS sunucuları yoğunluktan patladığında (502 Bad Gateway), sistem bazen sahte bir hata dönebilir. Backoff algoritmalarına (Logaritmik geri deneme) geçiş yapılmalıdır.
 
 ## 5. Kritik Kurallar (Rules & Guidelines)
 
-1.  **UI Thread Güvenliği:**
-    - Uzun süren işlemler (Web scraping, login) ASLA UI thread'ini bloklamamalıdır.
-    - `QThread` veya `QRunnable` kullanılmalıdır. İşlem bitince `pyqtSignal` ile UI güncellenmelidir.
-
-2.  **Stil ve Tema:**
-    - Hardcoded renkler YASAK. Tüm renkler `src/ui/styles/theme.py` içindeki `OBISColors` sınıfından gelmelidir.
-    - Fontlar `OBISFonts` sınıfından çağrılmalıdır.
-    - **Isolation:** `setStyleSheet` kullanırken ID Selector (`#ObjectName`) kullanarak stil sızıntılarını (Cascading issues) engelle.
-
-3.  **Hata Yönetimi:**
-    - Hata durumlarında kullanıcıya `OBISSnackbar` veya `QMessageBox` ile geri bildirim verilmeli, ancak uygulama çökmemelidir.
-    - Tüm kritik hatalar `logging` modülü ile kaydedilmelidir.
-
-4.  **Legacy Code (Eski Kod):**
-    - `src/ui(eski)/` klasörü referans amaçlı tutulmaktadır. Buradan kod kopyalarken PyQt6 standartlarına (Signal/Slot yapısı) çevirerek al.
-    - CustomTkinter kütüphanesi projeden tamamen kaldırılacaktır (Cleanup aşamasında).
-
-5.  **Veri Sorumluluğu (Separation of Concerns):**
-    - Veri çekme ve ilk oluşturma işlemleri `LoginWorker` gibi başlatıcı sınıfların sorumluluğundadır.
-    - Görünümler (Views) prensip olarak sadece var olan veriyi okumalı (`StorageService` üzerinden) veya kullanıcının açık talebiyle (buton tıklaması) worker tetiklemelidir.
+1.  **Thread Güvenliği:**
+    - Uzun süren işlemler ASLA UI thread'ini bloklamamalıdır (bkz: `src/ui/utils/worker.py`).
+2.  **Stil ve Tema Zorunluluğu:**
+    - Sınıfların içinden el yordamıyla `#FF5733` vs tetiklemek kesinlikle **YASAK**.
+    - Tüm renkler, fontlar `src/ui/styles/theme.py` üzerinden çağrılacaktır (`OBISColors.xyz`).
+3.  **God Object Kaçınması:**
+    - Görünümler (Views) eğer 300-400 satırı aşıyorsa o ekran için hemen bir `_cards.py` veya `_components.py` dizini yaratıp UI dizgi mantığını oraya taşıyın. View sadece sinyal alıp veren bir koordinatör (Controller) olmalıdır.
+4.  **Güvenlik İzleri:**
+    - `student_id` ve `obis_password` gibi hassas veriler ASLA diske yazılmaz, `SessionManager` ile Keyring sisteminde (Windows'ta Credential Vault) tutulur, `Settings.json` içinden ayıklanır.
 
 ---
-
-_Bu rapor sistem tamamlanma aşamalarına paralel olarak güncellenmektedir. UI Fazı Tamamlandı. (Faz 2: Backend Integration)_
+_Bu yapılandırma dokümanı, Model-View-Controller benzeri Component-bazlı Refactoring ve Backend Entegrasyonu (Sürüm 3.0) sonrası güncellenmiştir._

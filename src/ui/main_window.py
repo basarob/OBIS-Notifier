@@ -84,8 +84,10 @@ class MainWindow(QMainWindow):
         self.logs_view.snackbar_signal.connect(self.show_snackbar)
         self.profile_view.snackbar_signal.connect(self.show_snackbar)
         
-        # Dashboard <-> Sidebar Senkronizasyonu
+        # Dashboard <-> Diğer View'lar Senkronizasyonu
         self.dash_view.system_status_changed.connect(self.sidebar.set_system_status)
+        self.dash_view.system_status_changed.connect(self.settings_view.set_system_status)
+        self.dash_view.system_status_changed.connect(self.profile_view.set_system_status)
         
         self.content_stack.addWidget(self.dash_view)      # Index 0
         self.content_stack.addWidget(self.settings_view)  # Index 1
@@ -177,6 +179,11 @@ class MainWindow(QMainWindow):
         student_id = data.get("ogrenci_bilgileri", {}).get("numara", self.current_user)
         self.topbar.set_user_info(name, student_id)
 
+        # Dashboard Timeline'a bildir
+        self.dash_view.timeline_card.add_item(
+            f"Profil bilgileri güncellendi. ({name})", "success"
+        )
+
     def _change_page(self, index: int):
         """Sidebar butonlarına basılınca."""
         self.content_stack.setCurrentIndex(index)
@@ -194,9 +201,29 @@ class MainWindow(QMainWindow):
         self.main_stack.setCurrentWidget(self.app_container)
 
     def _logout(self):
-        """Çıkış Yap."""
+        """
+        Çıkış Yap. Sistem çalışıyorsa güvenli şekilde durdurur,
+        tüm oturum verilerini ve UI cache'lerini temizler.
+        """
         logging.info(f"Çıkış yapılıyor: {self.current_user}")
+
+        # 1. Dashboard: Sistem durdur + Timeline/Sayaç/Timer sıfırla
+        self.dash_view.reset_state()
+
+        # 2. Loglar: Tablo temizle
+        self.logs_view.reset_state()
+
+        # 3. Oturum verilerini sil (Keyring + session.json + profile.json)
         SessionManager.clear_session()
+
+        # 4. Topbar sıfırla
+        self.topbar.set_user_info("", "")
+        self.topbar.set_title("Ana Menü")
+
+        # 5. Sidebar'ı ilk durumuna getir (Dashboard seçili)
+        self.sidebar.set_system_status(False)
+        self.content_stack.setCurrentIndex(0)
+
         self.current_user = None
-        self.main_stack.setCurrentIndex(0) # Login ekranına dön
+        self.main_stack.setCurrentIndex(0)  # Login ekranına dön
         self.show_snackbar("Başarıyla çıkış yapıldı.", "success")

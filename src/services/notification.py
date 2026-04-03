@@ -8,6 +8,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from datetime import datetime
 from typing import List, Dict, Any, Optional, Callable
+from ui.styles.email_templates import OBISEmailTemplates
 
 class NotificationService:
     """Bildirim işlemlerini (Mail, Windows Toast) yöneten servis sınıfı."""
@@ -30,7 +31,7 @@ class NotificationService:
         self.notification_methods = notification_methods
         self.notification_callback = notification_callback
 
-    def send_email(self, subject: str, body: str) -> None:
+    def send_email(self, subject: str, body: str, is_html: bool = False) -> None:
         """
         SMTP protokolü ile e-posta gönderir.
         Gmail SMTP sunucusu (smtp.gmail.com:465 SSL) kullanılır.
@@ -40,7 +41,8 @@ class NotificationService:
             msg['From'] = self.sender_email
             msg['To'] = self.recipient_email
             msg['Subject'] = subject
-            msg.attach(MIMEText(body, 'plain'))
+            mime_type = 'html' if is_html else 'plain'
+            msg.attach(MIMEText(body, mime_type))
             
             with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
                 server.login(self.sender_email, self.sender_password)
@@ -51,7 +53,7 @@ class NotificationService:
 
     def notify_changes(self, changes: List[Dict[str, Any]]) -> None:
         """
-        .Tespit edilen değişiklikleri kullanıcının seçtiği yöntemlerle bildirir.
+        Tespit edilen değişiklikleri kullanıcının seçtiği yöntemlerle bildirir.
         """
         if not changes:
             return
@@ -60,36 +62,23 @@ class NotificationService:
         
         for change in changes:
             ders_adi = change['ders']
+            yeni = change['yeni']
             
-            # Yeni not verisi
-            yeni = change['yeni'] # .type: ignore
-            
-            # Mesaj gövdesini hazırla
-            body = f"📚 {ders_adi}\n\n"
-            if change['eski']:
-                body += "🔄 Güncellendi:\n"
-            else:
-                body += "🆕 Yeni Ders/Not:\n"
-
-            body += f"• Sınavlar: {yeni['Sınavlar']}\n"
-            body += f"• Harf Notu: {yeni['Harf Notu']}\n"
-            body += f"• Sonuç: {yeni['Sonuç']}\n"
-            body += f"\n⏰ {datetime.now().strftime('%d.%m.%Y %H:%M')}"
+            html_body = OBISEmailTemplates.get_grade_change_template(ders_adi, yeni)
             
             # 1. E-posta Bildirimi
             if "email" in self.notification_methods and self.sender_email:
                 try:
-                    email_subject = f"OBIS: {ders_adi}"
-                    self.send_email(email_subject, body)
+                    subject = f"OBIS Notifier - Ders Güncellemesi 📚"
+                    self.send_email(subject, html_body, is_html=True)
                     logging.info(f"E-posta gönderildi: {ders_adi}")
                 except Exception as e:
                     logging.error(f"E-mail gönderimi başarısız: {str(e)}")
             
-            # 2. Windows Bildirimi (Tray Icon veya Toast üzerinden)
+            # 2. Windows Bildirimi (Değişmedi)
             if "windows" in self.notification_methods and self.notification_callback:
                 try:
                     summary_text = f"Sınavlar: {yeni['Sınavlar']}\nHarf: {yeni['Harf Notu']} | Sonuç: {yeni['Sonuç']}"
-                    # GUI thread'ine callback ile bildir
                     self.notification_callback(f"📚 {ders_adi}", summary_text)
                     logging.info(f"Windows bildirimi tetiklendi: {ders_adi}")
                 except Exception as e:
@@ -98,13 +87,11 @@ class NotificationService:
     def send_test_notification(self) -> None:
         """Kullanıcının ayarlarını doğrulaması için test bildirimi gönderir."""
         logging.info("Test bildirimi gönderiliyor...")
-        subject = "🧪 OBIS Notifier - Test"
-        body = (f"Merhaba,\n\n"
-                f"Bu bir test bildirimidir. Ayarlarınız doğru yapılandırılmış görünüyor.\n\n"
-                f"⏰ {datetime.now().strftime('%d.%m.%Y %H:%M')}")
+        subject = "OBIS Notifier - Test 🧪"
+        html_body = OBISEmailTemplates.get_test_notification_template()
         
         if "email" in self.notification_methods:
-            self.send_email(subject, body)
+            self.send_email(subject, html_body, is_html=True)
             
         if "windows" in self.notification_methods:
              if self.notification_callback:
@@ -112,17 +99,13 @@ class NotificationService:
 
     def send_failure_notification(self) -> None:
         """Sistem ardışık hatalar nedeniyle durduğunda bildirim gönderir."""
-        subject = "⚠️ OBIS Notifier - Sistem Durduruldu"
-        body = (f"Merhaba,\n\n"
-                f"OBIS sistemine ardışık 3 kez giriş yapılamadı.\n"
-                f"Güvenlik nedeniyle veya şifre değişikliği/sistem hatası nedeniyle izleme durduruldu.\n\n"
-                f"Lütfen ayarlarınızı kontrol edip sistemi tekrar başlatın.\n\n"
-                f"⏰ {datetime.now().strftime('%d.%m.%Y %H:%M')}")
+        subject = "OBIS Notifier - Sistem Durduruldu ⚠️"
+        html_body = OBISEmailTemplates.get_failure_notification_template()
         
         # 1. E-posta Bildirimi
         if "email" in self.notification_methods:
             try:
-                self.send_email(subject, body)
+                self.send_email(subject, html_body, is_html=True)
                 logging.info("Başarısız giriş bildirim maili gönderildi.")
             except Exception as e:
                 logging.error(f"Hata maili gönderilemedi: {e}")
