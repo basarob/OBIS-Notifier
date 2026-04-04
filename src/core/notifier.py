@@ -35,13 +35,11 @@ class OBISNotifier:
         self.password: str = settings.get("obis_password", "")
         self.semester: str = settings.get("semester", "")
         self.browser_type: str = settings.get("browser", "chromium")
-        self.stop_on_failures: bool = settings.get("stop_on_failures", True)
+        self.stop_on_failures: bool = True
 
-        # --- Callback'ler (Dashboard Timeline ve bildirim) ---
+        # --- Callback (Dashboard Timeline) ---
         # timeline_callback(mesaj: str, tip: str) -> Dashboard timeline'a düşürülecek
         self.timeline_callback: Optional[Callable[[str, str], None]] = settings.get("timeline_callback", None)
-        # notification_callback(title: str, message: str) -> Windows Toast bildirimi
-        self.notification_callback: Optional[Callable[[str, str], None]] = settings.get("notification_callback", None)
 
         # --- Servislerin Başlatılması (Dependency Injection) ---
 
@@ -54,7 +52,7 @@ class OBISNotifier:
             sender_email=settings.get("sender_email", ""),
             sender_password=settings.get("gmail_app_password", ""),
             notification_methods=settings.get("notification_methods", ["email"]),
-            notification_callback=self.notification_callback
+            timeline_callback=self.timeline_callback
         )
 
         # 3. Not İşleme Servisi
@@ -104,7 +102,10 @@ class OBISNotifier:
                 # Başarılı giriş -> Hata sayacını sıfırla
                 self.consecutive_failures = 0
 
-                if self.browser_service.navigate_to_grades(self.semester):
+                try:
+                    if not self.browser_service.navigate_to_grades(self.semester):
+                        raise Exception("Notlar sayfasına gidilemedi.")
+                        
                     html_content = self.browser_service.get_page_content()
 
                     # --- Adım 2: Veri İşleme ---
@@ -126,7 +127,9 @@ class OBISNotifier:
                             self._emit_timeline(timeline_msg, "warn")
                             logging.info(f"{change_count} adet değişiklik tespit edildi!")
 
-                            self.notification_service.notify_changes(changes)
+                            mail_err = self.notification_service.notify_changes(changes)
+                            if mail_err:
+                                status_msg = mail_err
                         else:
                             self._emit_timeline("Kontrol tamamlandı, değişiklik yok.", "info")
                             logging.info("Herhangi bir değişiklik bulunamadı.")
@@ -142,8 +145,13 @@ class OBISNotifier:
                         logging.error(error_msg)
                         self._emit_timeline(error_msg, "error")
                         result["message"] = error_msg
-                else:
-                    error_msg = "Notlar sayfasına gidilemedi."
+                except ValueError as ve:
+                    error_msg = str(ve)
+                    self._emit_timeline(error_msg, "error")
+                    result["message"] = error_msg
+                    result["should_stop"] = True
+                except Exception as e:
+                    error_msg = f"Navigasyon hatası: {str(e)}"
                     logging.error(error_msg)
                     self._emit_timeline(error_msg, "error")
                     result["message"] = error_msg

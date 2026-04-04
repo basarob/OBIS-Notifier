@@ -3,11 +3,11 @@ title OBIS Notifier Kurulum Sihirbazi
 
 cls
 echo ===========================================
-echo        OBIS Notifier v2.1 Kurulumu          
+echo        OBIS Notifier v3.0 Kurulumu          
 echo ===========================================
 echo.
 
-echo [1/5] Python kontrol ediliyor...
+echo [1/4] Python kontrol ediliyor...
 python --version >nul 2>&1
 IF %ERRORLEVEL% NEQ 0 (
     echo.
@@ -22,11 +22,11 @@ IF %ERRORLEVEL% NEQ 0 (
 )
 echo.
 
-echo [2/5] pip guncelleniyor...
+echo [2/4] pip guncelleniyor...
 python -m pip install --upgrade pip
 echo.
 
-echo [3/5] Gerekli paketler yukleniyor...
+echo [3/4] Gerekli paketler yukleniyor...
 python -m pip install -r requirements.txt
 IF %ERRORLEVEL% NEQ 0 (
     echo [HATA] Paket yukleme sirasinda hata olustu. Internet baglantinizi kontrol edin.
@@ -35,19 +35,10 @@ IF %ERRORLEVEL% NEQ 0 (
 )
 echo.
 
-echo [4/5] Playwright tarayicilari indiriliyor...
-python -m playwright install
-IF %ERRORLEVEL% NEQ 0 (
-    echo [HATA] Playwright tarayicilari indirilemedi.
-    pause
-    exit /b
-)
-echo.
-
-echo [5/5] Uygulama (EXE) olusturuluyor...
+echo [4/4] Uygulama (EXE) olusturuluyor...
 echo Bu islem biraz zaman alabilir...
 if not exist "dist" mkdir "dist"
-pyinstaller --noconsole --onefile --name "OBISNotifier" --distpath "dist" --workpath "build" --icon="src/images/icon.ico" --add-data "src/images;images" --hidden-import "pystray" --hidden-import "PIL" --hidden-import "win11toast" --hidden-import "requests" --hidden-import "packaging" --paths="src" src/main.py
+pyinstaller --noconsole --onefile --name "OBISNotifier" --distpath "dist" --workpath "build" --icon="src/images/icon.ico" --add-data "src/images;images" --paths="src" src/main.py
 
 IF %ERRORLEVEL% EQU 0 (
     echo.

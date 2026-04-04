@@ -1,5 +1,6 @@
 """
-BU DOSYA: Kullanıcıya bildirim gönderme (E-posta ve Windows Bildirimi) işlemlerini yönetir.
+BU DOSYA: Kullanıcıya e-posta bildirimi gönderme işlemlerini yönetir.
+Kritik hatalar (SMTP hataları vb.) timeline callback üzerinden Dashboard'a bildirilir.
 """
 
 import logging
@@ -11,27 +12,35 @@ from typing import List, Dict, Any, Optional, Callable
 from ui.styles.email_templates import OBISEmailTemplates
 
 class NotificationService:
-    """Bildirim işlemlerini (Mail, Windows Toast) yöneten servis sınıfı."""
+    """E-posta bildirim işlemlerini yöneten servis sınıfı."""
     
     def __init__(self, 
                  sender_email: str, 
                  sender_password: str, 
                  notification_methods: List[str], 
-                 notification_callback: Optional[Callable] = None):
+                 timeline_callback: Optional[Callable[[str, str], None]] = None):
         """
         Args:
             sender_email: Gönderen Gmail adresi
             sender_password: Gmail Uygulama Şifresi
             notification_methods: Seçili yöntemler listesi
-            notification_callback: GUI tarafındaki Windows bildirimi fonksiyonu (callback)
+            timeline_callback: Dashboard timeline'a mesaj göndermek için callback
         """
         self.sender_email = sender_email
         self.sender_password = sender_password
         self.recipient_email = sender_email 
         self.notification_methods = notification_methods
-        self.notification_callback = notification_callback
+        self.timeline_callback = timeline_callback
 
-    def send_email(self, subject: str, body: str, is_html: bool = False) -> None:
+    def _emit_timeline(self, message: str, msg_type: str = "error") -> None:
+        """Timeline callback'e mesaj gönderir (varsa)."""
+        if self.timeline_callback:
+            try:
+                self.timeline_callback(message, msg_type)
+            except Exception:
+                pass
+
+    def send_email(self, subject: str, body: str, is_html: bool = False, suppress_timeline: bool = False) -> None:
         """
         SMTP protokolü ile e-posta gönderir.
         Gmail SMTP sunucusu (smtp.gmail.com:465 SSL) kullanılır.
@@ -48,41 +57,41 @@ class NotificationService:
                 server.login(self.sender_email, self.sender_password)
                 server.sendmail(self.sender_email, self.recipient_email, msg.as_string())
         except Exception as e:
-            logging.error(f"Mail gönderme hatası: {e}")
+            error_msg = f"Mail gönderme hatası: {e}"
+            logging.error(error_msg)
+            if not suppress_timeline:
+                self._emit_timeline(error_msg, "error")
             raise e
 
-    def notify_changes(self, changes: List[Dict[str, Any]]) -> None:
+    def notify_changes(self, changes: List[Dict[str, Any]]) -> Optional[str]:
         """
         Tespit edilen değişiklikleri kullanıcının seçtiği yöntemlerle bildirir.
         """
         if not changes:
-            return
+            return None
         
         logging.info(f"{len(changes)} adet değişiklik için bildirim gönderiliyor...")
         
+        error_msg = None
+        error_reported = False
         for change in changes:
             ders_adi = change['ders']
             yeni = change['yeni']
             
             html_body = OBISEmailTemplates.get_grade_change_template(ders_adi, yeni)
             
-            # 1. E-posta Bildirimi
+            # E-posta Bildirimi
             if "email" in self.notification_methods and self.sender_email:
                 try:
                     subject = f"OBIS Notifier - Ders Güncellemesi 📚"
-                    self.send_email(subject, html_body, is_html=True)
+                    self.send_email(subject, html_body, is_html=True, suppress_timeline=error_reported)
                     logging.info(f"E-posta gönderildi: {ders_adi}")
                 except Exception as e:
                     logging.error(f"E-mail gönderimi başarısız: {str(e)}")
-            
-            # 2. Windows Bildirimi (Değişmedi)
-            if "windows" in self.notification_methods and self.notification_callback:
-                try:
-                    summary_text = f"Sınavlar: {yeni['Sınavlar']}\nHarf: {yeni['Harf Notu']} | Sonuç: {yeni['Sonuç']}"
-                    self.notification_callback(f"📚 {ders_adi}", summary_text)
-                    logging.info(f"Windows bildirimi tetiklendi: {ders_adi}")
-                except Exception as e:
-                    logging.error(f"Windows bildirimi hatası: {str(e)}")
+                    if not error_reported:
+                        error_msg = f"Mail gönderme hatası: {str(e)}"
+                    error_reported = True
+        return error_msg
 
     def send_test_notification(self) -> None:
         """Kullanıcının ayarlarını doğrulaması için test bildirimi gönderir."""
@@ -92,28 +101,16 @@ class NotificationService:
         
         if "email" in self.notification_methods:
             self.send_email(subject, html_body, is_html=True)
-            
-        if "windows" in self.notification_methods:
-             if self.notification_callback:
-                 self.notification_callback("Test Bildirimi", "Sistem başarıyla çalışıyor!")
 
     def send_failure_notification(self) -> None:
         """Sistem ardışık hatalar nedeniyle durduğunda bildirim gönderir."""
         subject = "OBIS Notifier - Sistem Durduruldu ⚠️"
         html_body = OBISEmailTemplates.get_failure_notification_template()
         
-        # 1. E-posta Bildirimi
+        # E-posta Bildirimi
         if "email" in self.notification_methods:
             try:
                 self.send_email(subject, html_body, is_html=True)
                 logging.info("Başarısız giriş bildirim maili gönderildi.")
             except Exception as e:
                 logging.error(f"Hata maili gönderilemedi: {e}")
-
-        # 2. Windows Bildirimi
-        if "windows" in self.notification_methods and self.notification_callback:
-            try:
-                self.notification_callback("⚠️ Sistem Durdu", "3 başarısız giriş denemesi. Lütfen şifrenizi kontrol edin.")
-                logging.info("Başarısız giriş Windows bildirimi gönderildi.")
-            except Exception as e:
-                logging.error(f"Hata bildirimi gösterilemedi: {e}") 

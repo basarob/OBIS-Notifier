@@ -3,8 +3,11 @@ BU DOSYA: Uygulamanın ana çerçevesi.
 Sidebar, Topbar ve Değişen İçerik Alanlarını birleştirir.
 """
 
-from PyQt6.QtWidgets import QMainWindow, QWidget, QHBoxLayout, QVBoxLayout, QStackedWidget
+from PyQt6.QtWidgets import QMainWindow, QWidget, QHBoxLayout, QVBoxLayout, QStackedWidget, QSystemTrayIcon, QMenu, QApplication, QMessageBox
+from PyQt6.QtGui import QIcon, QAction
 from PyQt6.QtCore import Qt
+import os
+import json
 from datetime import datetime
 from .styles.theme import OBISStyles
 from .components.sidebar import OBISSidebar
@@ -19,6 +22,7 @@ from .views.logs import LogsView
 from .views.profile import ProfileView
 
 from services.session import SessionManager
+from utils.system import get_user_data_dir
 import logging
 
 class MainWindow(QMainWindow):
@@ -88,6 +92,7 @@ class MainWindow(QMainWindow):
         self.dash_view.system_status_changed.connect(self.sidebar.set_system_status)
         self.dash_view.system_status_changed.connect(self.settings_view.set_system_status)
         self.dash_view.system_status_changed.connect(self.profile_view.set_system_status)
+        self.dash_view.last_check_updated.connect(self.topbar.set_last_check_time)
         
         self.content_stack.addWidget(self.dash_view)      # Index 0
         self.content_stack.addWidget(self.settings_view)  # Index 1
@@ -115,13 +120,95 @@ class MainWindow(QMainWindow):
         
         # Mevcut kullanıcı durumu
         self.current_user = None
+        
+        self._setup_tray_icon()
 
-        # --- DEVELOPMENT BYPASS START ---
-        # self.current_user = "221805031" # Öğrenci No
-        # self.topbar.set_user_info("Başar Orhanbulucu", self.current_user)
-        # self.profile_view.set_user_data("Başar Orhanbulucu", self.current_user, "2025-01-01 12:00:00")
-        # self.main_stack.setCurrentIndex(1) # Doğrudan uygulamayı aç
-        # --- DEVELOPMENT BYPASS END ---
+    def showEvent(self, event):
+        super().showEvent(event)
+        
+        notes_path = os.path.join(get_user_data_dir(), "release_notes.txt")
+        if getattr(self, "_notes_checked", False) == False:
+            self._notes_checked = True
+            if os.path.exists(notes_path):
+                try:
+                    with open(notes_path, "r", encoding="utf-8") as f:
+                        notes = f.read()
+                    
+                    msg = QMessageBox(self)
+                    msg.setWindowTitle("OBIS Notifier Güncellendi!")
+                    msg.setText("YENİ SÜRÜM NOTLARI")
+                    msg.setInformativeText("Yeni sürüm başarıyla yüklendi. Neler değişti görmek için detayları inceleyebilirsiniz.")
+                    msg.setDetailedText(notes)
+                    msg.setIcon(QMessageBox.Icon.Information)
+                    msg.exec()
+                    
+                    os.remove(notes_path)
+                except Exception as e:
+                    logging.error(f"Sürüm notları okunamadı: {e}")
+
+    def _setup_tray_icon(self):
+        self.tray_icon = QSystemTrayIcon(self)
+        
+        icon_path = os.path.join(os.path.dirname(__file__), "..", "images", "icon.ico")
+        if os.path.exists(icon_path):
+            self.tray_icon.setIcon(QIcon(icon_path))
+        else:
+            self.tray_icon.setIcon(QApplication.windowIcon())
+            
+        tray_menu = QMenu()
+        
+        show_action = QAction("Uygulamayı Göster", self)
+        show_action.triggered.connect(self.show_window)
+        
+        quit_action = QAction("Çıkış", self)
+        quit_action.triggered.connect(self.quit_app)
+        
+        tray_menu.addAction(show_action)
+        tray_menu.addSeparator()
+        tray_menu.addAction(quit_action)
+        
+        self.tray_icon.setContextMenu(tray_menu)
+        self.tray_icon.activated.connect(self._tray_icon_activated)
+        
+    def _tray_icon_activated(self, reason):
+        if reason == QSystemTrayIcon.ActivationReason.DoubleClick:
+            self.show_window()
+
+    def show_window(self):
+        self.show()
+        self.activateWindow()
+        if self.isMinimized():
+            self.showNormal()
+
+    def quit_app(self):
+        QApplication.quit()
+
+    def closeEvent(self, event):
+        settings_file = os.path.join(get_user_data_dir(), "settings.json")
+        minimize_to_tray = False
+        if os.path.exists(settings_file):
+            try:
+                with open(settings_file, "r", encoding="utf-8") as f:
+                    settings = json.load(f)
+                    minimize_to_tray = settings.get("minimize_to_tray", False)
+            except Exception:
+                pass
+                
+        if minimize_to_tray:
+            event.ignore()
+            self.hide()
+            self.tray_icon.show()
+            if not getattr(self, '_tray_message_shown', False):
+                self.tray_icon.showMessage(
+                    "OBIS Notifier",
+                    "Uygulama arka planda çalışmaya devam ediyor.",
+                    QSystemTrayIcon.MessageIcon.Information,
+                    2000
+                )
+                self._tray_message_shown = True
+        else:
+            QApplication.quit()
+            event.accept()
 
     def show_snackbar(self, message: str, type: str = "info"):
         """Uygulama genelinde bildirim gösterir."""
@@ -130,10 +217,6 @@ class MainWindow(QMainWindow):
 
     def _check_and_auto_login(self):
         """Kayıtlı oturum varsa otomatik giriş dener."""
-        
-        # # DEV MODE: Login bypass edildiği için burayı pass geçiyoruz.
-        # logging.warning("DevMode ile program başlatıldı.")
-        # pass
 
         # Varsayılan olarak Login ekranındayız
         self.main_stack.setCurrentIndex(0) 

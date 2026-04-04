@@ -15,45 +15,6 @@ from playwright.sync_api import sync_playwright, Browser, Page, Playwright
 # Konfigürasyon ve Selector importu (Relative import)
 from config import OBISSelectors
 
-def ensure_browsers_installed() -> bool:
-    """
-    Playwright tarayıcılarının (Chromium) yüklü olup olmadığını kontrol eder.
-    Yüklü değilse indirme işlemini başlatır.
-    """
-    logging.info("Tarayıcı kontrolü yapılıyor...")
-    
-    # 1. Kontrol: Tarayıcı başlatmayı dene
-    try:
-        with sync_playwright() as p:
-             p.chromium.launch(headless=True).close()
-        logging.info("Tarayıcılar zaten yüklü.")
-        return True
-    except Exception:
-        logging.warning("Chromium tarayıcısı bulunamadı, indiriliyor...")
-    
-    # 2. İndirme İşlemi
-    try:
-        if getattr(sys, 'frozen', False):
-            # EXE ortamında Playwright CLI install simülasyonu
-            from playwright.__main__ import main
-            old_argv = sys.argv
-            sys.argv = ["playwright", "install", "chromium"]
-            try:
-                main()
-            except SystemExit:
-                pass
-            finally:
-                sys.argv = old_argv
-        else:
-            # Geliştirme ortamında subprocess
-            subprocess.run([sys.executable, "-m", "playwright", "install", "chromium"], check=True)
-            
-        logging.info("Tarayıcı kurulumu tamamlandı.")
-        return True
-    except Exception as e:
-        logging.error(f"Tarayıcı kurulumu sırasında kritik hata: {e}")
-        return False
-
 
 class BrowserService:
     """Tarayıcı yaşam döngüsünü ve sayfa etkileşimlerini yönetir."""
@@ -178,8 +139,9 @@ class BrowserService:
             semester_item = self.page.locator(f'li:has-text("{semester}")')
             
             if semester_item.count() == 0:
-                 logging.error(f"Seçilen dönem ({semester}) listede bulunamadı.")
-                 return False
+                 error_msg = f"Seçilen dönem ({semester}) listede bulunamadı."
+                 logging.error(error_msg)
+                 raise ValueError(error_msg)
             
             semester_item.click()
             

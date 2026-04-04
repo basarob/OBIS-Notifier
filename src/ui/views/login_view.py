@@ -3,11 +3,12 @@ BU DOSYA: Kullanıcının OBIS bilgilerini girerek sisteme
 giriş yaptığı ekran.
 """
 
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel, QMessageBox, QLineEdit
-from PyQt6.QtCore import Qt, pyqtSignal, QSize, QThread
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel, QMessageBox, QLineEdit, QApplication
+from PyQt6.QtCore import Qt, pyqtSignal, QSize, QThread, QTimer
 from PyQt6.QtGui import QPixmap
 import os
 import sys
+import shutil
 from ..components.card import OBISCard
 from ..components.input import OBISInput
 from ..components.button import OBISButton
@@ -15,77 +16,8 @@ from ..styles.theme import OBISColors, OBISFonts, OBISDimens, OBISStyles
 from ..utils.animations import OBISAnimations
 import qtawesome as qta
 
-from services.browser import BrowserService
-import logging
-
-class LoginWorker(QThread):
-    """
-    Arka planda BrowserService ile giriş dener.
-    """
-    result_signal = pyqtSignal(bool, str) # success, message
-    status_signal = pyqtSignal(str) # UI durum bilgisini günceller
-
-    def __init__(self, user, pwd):
-        super().__init__()
-        self.user = user
-        self.pwd = pwd
-
-    def run(self):
-        try:
-            # .Tarayıcıyı headless (görünmez) başlat
-            browser = BrowserService(headless=True)
-            browser.start_browser()
-            
-            # Login dene
-            is_success = browser.login(self.user, self.pwd)
-            
-            if is_success:
-                # Başarılı girişten sonra profile verisini kontrol et
-                profile_dir = os.path.join(os.getenv('LOCALAPPDATA'), 'OBISNotifier')
-                os.makedirs(profile_dir, exist_ok=True)
-                profile_file = os.path.join(profile_dir, 'profile.json')
-                
-                if not os.path.exists(profile_file):
-                    self.status_signal.emit("Profil Bilgileri Alınıyor...")
-                    try:
-                        logging.info("Bilgileri çekme işlemi başlatılıyor...")
-                        pdf_path = browser.download_graduation_pdf()
-                        if pdf_path and os.path.exists(pdf_path):
-                            logging.info(f"PDF başarıyla indi: {pdf_path}")
-                            from services.pdf_parser import PDFParserService
-                            from services.storage import ProfileStorageService
-                            
-                            parser_service = PDFParserService()
-                            storage_service = ProfileStorageService(profile_file)
-                            
-                            parsed_data = parser_service.extract_graduation_data(pdf_path)
-
-                            if storage_service.save_profile_data(parsed_data):
-                                logging.info("Profil JSON dosyasına başarıyla kaydedildi!")
-                            else:
-                                logging.error("Profil JSON kaydedilemedi!")
-                            
-                            try:
-                                os.remove(pdf_path)
-                                logging.info("PDF dosyası silindi.")
-                            except OSError:
-                                logging.error("PDF dosyası silinemedi!")
-                        else:
-                            logging.error("PDF yolu alınamadı veya dosya mevcut değil!")
-                            self.result_signal.emit(False, "Veriler çekilemedi!", {})
-
-                    except Exception as pdf_err:
-                        logging.error(f"Bilgileri çekme sırasında hata: {pdf_err}")
-                        self.result_signal.emit(False, "Veriler çekilemedi!", {})
-                        
-                browser.close_browser()
-                self.result_signal.emit(True, "Giriş Başarılı! Yönlendiriliyorsunuz...")
-            else:
-                browser.close_browser()
-                self.result_signal.emit(False, "Giriş Başarısız! Lütfen bilgilerinizi kontrol ediniz.")
-                
-        except Exception as e:
-            self.result_signal.emit(False, f"Sistem hatası: {str(e)}")
+from ui.utils.startup import StartupManager
+from ui.utils.worker import LoginWorker
 
 class LoginView(QWidget):
     """
@@ -104,6 +36,12 @@ class LoginView(QWidget):
         # Snackbar
         self.snackbar = None
         
+        # Sistem kontrolü durumu (Playwright hazır mı?)
+        self._system_ready = False
+        self._system_check_worker = None
+        # Otomatik giriş beklemede mi? (Sistem bitmeden login başlatılmasın)
+        self._pending_auto_login = None
+        
         # Ana Layout (Merkezleme için)
         self.main_layout = QVBoxLayout(self)
         self.main_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -115,9 +53,15 @@ class LoginView(QWidget):
         """Sayfa her görüntülendiğinde çalışır."""
         super().showEvent(event)
         
-        # Animasyonlar (Sadece ilk açılışta veya her girişte çalışacak şekilde ayarlandı)
         # Kart Giriş Animasyonu
         OBISAnimations.entrance_anim(self.card, delay=100)
+        
+        # İlk açılışta güncellemeleri kontrol et
+        if not getattr(self, "_update_checked", False):
+            self._update_checked = True
+            self._start_startup_checks()
+        elif not self._system_ready and self.startup_manager is None:
+            self._start_startup_checks()
         
     def _setup_ui(self):
         """Arayüz elemanlarını oluştur."""
@@ -269,13 +213,70 @@ class LoginView(QWidget):
             self.btn_login.setIcon(qta.icon("fa5s.sign-in-alt", color="white"))
             self.btn_login.setLayoutDirection(Qt.LayoutDirection.RightToLeft) # İkonu sağa al
 
+    # --- Güncelleme & Playwright Sistem Kontrolü ---
+
+    def _start_startup_checks(self):
+        """Arka planda Updater ve SystemCheck'i yöneten manager'ı başlatır."""
+        self.btn_login.setEnabled(False)
+        spin_icon = qta.icon('fa5s.spinner', color='white', animation=qta.Spin(self.btn_login))
+        self.btn_login.setIcon(spin_icon)
+        
+        self.startup_manager = StartupManager()
+        self.startup_manager.status_changed.connect(self._on_startup_status)
+        self.startup_manager.finished.connect(self._on_startup_finished)
+        self.startup_manager.start_checks()
+
+    def _on_startup_status(self, message: str):
+        self.btn_login.setText(f"{message} ")
+
+    def _on_startup_finished(self, success: bool):
+        self.startup_manager = None
+        self._system_ready = success
+
+        if success:
+            self.btn_login.setEnabled(True)
+            self.btn_login.setText("Giriş Yap  ")
+            self.btn_login.setIcon(qta.icon("fa5s.sign-in-alt", color="white"))
+            self.btn_login.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
+            
+            if self._pending_auto_login:
+                user, pwd = self._pending_auto_login
+                self._pending_auto_login = None
+                self._start_auto_login(user, pwd)
+        else:
+            self.btn_login.setEnabled(False)
+            self.btn_login.setText("Kurulum Başarısız ")
+            self.btn_login.setIcon(qta.icon("fa5s.times-circle", color="white"))
+            self.inp_std.setEnabled(False)
+            self.inp_pass.setEnabled(False)
+            
+            if hasattr(self.window(), "show_snackbar"):
+                self.window().show_snackbar(
+                    "Tarayıcılar kurulamadı! Dosyalar temizlenip 3 saniye içinde kapatılacak.", "error"
+                )
+            
+            QTimer.singleShot(3000, StartupManager.cleanup_and_exit)
+
+    # --- Otomatik Giriş ---
+
     def check_auto_login(self, user, pwd):
         """
         Otomatik giriş kontrolünü başlatır.
-        UI etkileşimini kapatır ve kullanıcıya bilgi verir.
+        Sistem kontrolü henüz bitmemişse, giriş isteğini kuyruğa alır.
         """
         self.inp_std.setText(user)
         self.inp_pass.setText(pwd)
+        
+        if not self._system_ready:
+            # Sistem henüz hazır değil, beklet
+            self._pending_auto_login = (user, pwd)
+            self.btn_login.setText("Sistem Hazırlanıyor... ")
+            return
+        
+        self._start_auto_login(user, pwd)
+
+    def _start_auto_login(self, user: str, pwd: str):
+        """Sistem hazır olduktan sonra otomatik girişi fiilen başlatır."""
         self._set_loading(True)
         self.btn_login.setText("Oturum Doğrulanıyor... ")
         
@@ -290,6 +291,11 @@ class LoginView(QWidget):
 
     def _on_login_clicked(self):
         """Giriş butonuna basılınca (Validasyonlu)"""
+        
+        if not self._system_ready:
+            self._start_startup_checks()
+            return
+        
         user = self.inp_std.text().strip()
         pwd = self.inp_pass.text().strip()
         
@@ -297,15 +303,14 @@ class LoginView(QWidget):
         
         if not user:
             self.inp_std.set_error(True)
-            OBISAnimations.shake(self.inp_std) # .Titreşim Efekti
+            OBISAnimations.shake(self.inp_std) # Titreşim Efekti
             has_error = True
             
         if not pwd:
             self.inp_pass.set_error(True)
-            if not has_error: # Eğer üstteki sallanıyorsa bunu biraz gecikmeli veya aynı anda salla
+            if not has_error:
                 OBISAnimations.shake(self.inp_pass)
             else:
-                 # İkisi de boşsa ikincisini de salla
                  OBISAnimations.shake(self.inp_pass)
             has_error = True
             

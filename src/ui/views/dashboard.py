@@ -11,6 +11,7 @@ import datetime
 import json
 import os
 import logging
+import winsound
 from .dashboard_cards import DashboardControlCard, DashboardStatsCard, DashboardTimelineCard
 
 # Servisler
@@ -31,6 +32,7 @@ SETTINGS_FILE = os.path.join(get_user_data_dir(), "settings.json")
 class DashboardView(QWidget):
     system_status_changed = pyqtSignal(bool)
     snackbar_signal = pyqtSignal(str, str)
+    last_check_updated = pyqtSignal(str)  # Son kontrol zamanı ("HH:MM (Başarılı)")
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -52,7 +54,7 @@ class DashboardView(QWidget):
         self.is_checking: bool = False
 
         # --- Timer & Spam Koruma ---
-        self.CHECK_INTERVAL: int = 15 * 60
+        self.CHECK_INTERVAL: int = 20 * 60
         self.time_left: int = self.CHECK_INTERVAL
         self.last_manual_check_time: datetime.datetime | None = None
         self.toggle_timestamps: list = []
@@ -139,7 +141,7 @@ class DashboardView(QWidget):
         settings["obis_password"] = password
         settings["timeline_callback"] = self._on_timeline_from_worker
 
-        check_interval_minutes = int(settings.get("check_interval", 15))
+        check_interval_minutes = int(settings.get("check_interval", 20))
         self.CHECK_INTERVAL = check_interval_minutes * 60
         self.time_left = self.CHECK_INTERVAL
 
@@ -255,9 +257,23 @@ class DashboardView(QWidget):
                     else:
                         self.timeline_card.add_item(f"🆕 {ders_adi} — Sınavlar: {sinavlar} | Harf: {harf} | Sonuç: {sonuc}", "warn")
                 self.timeline_card.add_item(f"Bildirimler gönderildi. ({len(changes)} ders değişikliği)", "success")
+                if message and "mail" in message.lower():
+                    self.timeline_card.add_item("❌ E-Mail gönderme hatası: Bilgilerinizi kontrol ediniz.", "error")
+                
+                try:
+                    winsound.PlaySound("SystemNotification", winsound.SND_ALIAS | winsound.SND_ASYNC)
+                except Exception:
+                    pass
             logging.info(f"{self.check_count}. kontrol başarıyla tamamlandı. (Süre: {elapsed:.1f} sn)")
         else:
             logging.warning(f"{self.check_count}. kontrol başarısız: {message} (Süre: {elapsed:.1f} sn)")
+            if should_stop or "bulunamadı" in message.lower() or "hata" in message.lower():
+                self.timeline_card.add_item(f"❌ {message}", "error")
+
+        # Son kontrol zamanını topbar'a bildir
+        now_str = datetime.datetime.now().strftime("%H:%M")
+        status_text = "Başarılı" if success else "Başarısız"
+        self.last_check_updated.emit(f"{now_str} ({status_text})")
 
         if should_stop:
             self._stop_system(auto_stopped=True)

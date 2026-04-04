@@ -20,7 +20,7 @@ from ..utils.animations import OBISAnimations
 
 # Servis ve Utils
 from ui.utils.worker import TestMailWorker
-from utils.system import set_auto_start, get_user_data_dir
+from utils.system import get_user_data_dir
 from utils.date_utils import get_current_semester
 
 SETTINGS_FILE = os.path.join(get_user_data_dir(), "settings.json")
@@ -145,6 +145,28 @@ class SettingsView(QWidget):
     # ================= VERİ YÜKLEME / KAYDETME =================
 
     def load_settings(self):
+        """Ayarları dosyadan yükler. Dosya yoksa varsayılan değerlerle oluşturur."""
+        
+        # Dosya yoksa varsayılan ayarlarla oluştur
+        if not os.path.exists(SETTINGS_FILE):
+            default_settings = {
+                "check_interval": 20,
+                "auto_semester": True,
+                "semester": get_current_semester(),
+                "notification_methods": [],
+                "sender_email": "",
+                "gmail_app_password": "",
+                "browser": "chromium",
+                "minimize_to_tray": False
+            }
+            try:
+                os.makedirs(os.path.dirname(SETTINGS_FILE), exist_ok=True)
+                with open(SETTINGS_FILE, "w", encoding="utf-8") as f:
+                    json.dump(default_settings, f, indent=4)
+                logging.info("Varsayılan settings.json oluşturuldu.")
+            except Exception as e:
+                logging.error(f"Varsayılan ayar dosyası oluşturulamadı: {e}")
+        
         settings = {}
         if os.path.exists(SETTINGS_FILE):
             try:
@@ -160,19 +182,17 @@ class SettingsView(QWidget):
         self.card_automation.set_data(interval, is_auto_semester, semester)
 
         # Notification
-        methods = settings.get("notification_methods", ["email"])
+        methods = settings.get("notification_methods", [])
         self.card_notification.set_data(
             "email" in methods,
             settings.get("sender_email", ""),
             settings.get("gmail_app_password", "")
         )
 
-        # Advanced
+        # Advanced (stop_on_failures artık çekirdekte kalıcı, UI'da gösterilmiyor)
         self.card_advanced.set_data(
             settings.get("browser", "chromium"),
-            settings.get("minimize_to_tray", False),
-            settings.get("auto_start", False),
-            settings.get("stop_on_failures", True)
+            settings.get("minimize_to_tray", False)
         )
 
     def save_settings(self):
@@ -211,16 +231,12 @@ class SettingsView(QWidget):
                 "sender_email": notif_data["email_address"],
                 "gmail_app_password": notif_data["email_pwd"],
                 "browser": adv_data["browser"],
-                "minimize_to_tray": adv_data["minimize_to_tray"],
-                "auto_start": adv_data["auto_start"],
-                "stop_on_failures": adv_data["stop_on_failures"]
+                "minimize_to_tray": adv_data["minimize_to_tray"]
             })
             
             with open(SETTINGS_FILE, "w", encoding="utf-8") as f:
                 json.dump(current_settings, f, indent=4)
                 
-            set_auto_start(adv_data["auto_start"])
-            
             logging.info(f"Ayarlar kaydedildi. (Kontrol: {auto_data['check_interval']} dk, Dönem: {auto_data['semester']}, Tarayıcı: {adv_data['browser']})")
             self.snackbar_signal.emit("Ayarlar başarıyla kaydedildi.", "success")
             

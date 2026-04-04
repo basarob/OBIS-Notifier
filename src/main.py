@@ -10,16 +10,17 @@ import os
 import ctypes
 import logging
 from PyQt6.QtWidgets import QApplication
-from PyQt6.QtGui import QFont
+from PyQt6.QtGui import QFont, QIcon
 
 # Local Imports
 from utils.logger_qt import qt_logger
 from ui.main_window import MainWindow
 from ui.styles.theme import OBISFonts
 
-# Playwright Fix for PyInstaller
-if getattr(sys, 'frozen', False):
-    os.environ["PLAYWRIGHT_BROWSERS_PATH"] = "0"
+# Playwright tarayıcı dosyalarının merkezi konumu.
+_playwright_dir = os.path.join(os.getenv('LOCALAPPDATA', ''), "OBISNotifier", "Playwright")
+os.makedirs(_playwright_dir, exist_ok=True)
+os.environ["PLAYWRIGHT_BROWSERS_PATH"] = _playwright_dir
 
 def setup_logging():
     """Logging yapılandırmasını başlatır."""
@@ -59,16 +60,22 @@ def main():
 
     app = QApplication(sys.argv)
     
-    # Font Kurulumu
-    font_family = OBISFonts.init_fonts()
-    app.setFont(QFont(font_family, 10))
-
-    # Global QSS (Stil) Dosyasını Yükle
+    # Global Paths
     if getattr(sys, 'frozen', False):
         base_path = sys._MEIPASS
     else:
         base_path = os.path.dirname(os.path.abspath(__file__))
         
+    # Application Icon
+    icon_path = os.path.join(base_path, "images", "icon.ico")
+    if os.path.exists(icon_path):
+        app.setWindowIcon(QIcon(icon_path))
+    
+    # Font Kurulumu
+    font_family = OBISFonts.init_fonts()
+    app.setFont(QFont(font_family, 10))
+
+    # Global QSS (Stil) Dosyasını Yükle
     qss_path = os.path.join(base_path, "ui", "styles", "global.qss")
     try:
         if os.path.exists(qss_path):

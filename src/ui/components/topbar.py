@@ -2,7 +2,7 @@
 BU DOSYA: Ekranın sağ üst köşesindeki kullanıcı bilgi çubuğu.
 """
 
-from PyQt6.QtWidgets import QFrame, QHBoxLayout, QLabel, QPushButton, QWidget, QVBoxLayout
+from PyQt6.QtWidgets import QFrame, QHBoxLayout, QLabel, QWidget, QVBoxLayout
 from PyQt6.QtCore import Qt, QSize, pyqtSignal
 from ..styles.theme import OBISColors, OBISDimens, OBISFonts, OBISStyles
 import qtawesome as qta
@@ -60,25 +60,12 @@ class OBISTopBar(QFrame):
         left_layout.addWidget(self.lbl_title)
         left_layout.addWidget(info_container)
         
-        # --- 2. SAĞ TARAF (Bildirim + Ayraç + Profil) ---
+        # --- 2. SAĞ TARAF (Profil) ---
         right_container = QWidget()
         right_layout = QHBoxLayout(right_container)
         right_layout.setContentsMargins(0, 0, 0, 0)
         right_layout.setSpacing(20)
         right_layout.setAlignment(Qt.AlignmentFlag.AlignVCenter)
-        
-        # Bildirim İkonu
-        btn_bell = QPushButton()
-        btn_bell.setIcon(qta.icon("fa5s.bell", color=OBISColors.TEXT_SECONDARY))
-        btn_bell.setIconSize(QSize(20, 20))
-        btn_bell.setCursor(Qt.CursorShape.PointingHandCursor)
-        btn_bell.setStyleSheet("border: none; background: transparent;")
-        
-        # Dikey Ayraç
-        separator = QFrame()
-        separator.setFrameShape(QFrame.Shape.VLine)
-        separator.setFixedHeight(30)
-        separator.setStyleSheet(f"color: {OBISColors.BORDER}; border: 0px; background-color: {OBISColors.BORDER}; width: 1px;")
 
         # Profil Kartı (Frame olarak yeniden tasarlandı)
         self.profile_widget = QFrame()
@@ -124,8 +111,6 @@ class OBISTopBar(QFrame):
         p_layout.addWidget(text_container)
         p_layout.addWidget(self.avatar)
         
-        right_layout.addWidget(btn_bell)
-        right_layout.addWidget(separator)
         right_layout.addWidget(self.profile_widget)
         
         self.layout.addWidget(left_container)

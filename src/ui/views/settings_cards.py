@@ -345,13 +345,9 @@ class SettingsAdvancedCard(OBISCard):
         col_right.setContentsMargins(0, 0, 0, 0)
         col_right.setSpacing(16)
         
-        self.sw_autostart = self._create_switch_row("Windows Başlangıcında Başlat", "Bilgisayar açıldığında uygulamayı otomatik başlatır.")
         self.sw_minimize = self._create_switch_row("Simge Durumunda Çalıştır", "Pencere kapatıldığında sistem tepsisinde çalışmaya devam eder.")
-        self.sw_stop_fail = self._create_switch_row("3 Başarısız Girişte Durdur", "Giriş denemeleri 3 kez başarısız olursa sistemi durdurur.")
         
         col_right.addLayout(self.sw_minimize)
-        col_right.addLayout(self.sw_autostart)
-        col_right.addLayout(self.sw_stop_fail)
         col_right.addStretch()
         
         adv_grid.addLayout(col_left, 0, 0)
@@ -426,23 +422,17 @@ class SettingsAdvancedCard(OBISCard):
         row.switch_widget = sw
         return row
 
-    def set_data(self, browser: str, min_to_tray: bool, auto_strt: bool, stop_fail: bool):
+    def set_data(self, browser: str, min_to_tray: bool):
         self._set_browser(browser if browser in ["chromium", "firefox"] else "chromium")
         self.sw_minimize.switch_widget.setChecked(min_to_tray)
-        self.sw_autostart.switch_widget.setChecked(auto_strt)
-        self.sw_stop_fail.switch_widget.setChecked(stop_fail)
 
     def get_data(self):
         return {
             "browser": getattr(self, "selected_browser", "chromium"),
-            "minimize_to_tray": self.sw_minimize.switch_widget.isChecked(),
-            "auto_start": self.sw_autostart.switch_widget.isChecked(),
-            "stop_on_failures": self.sw_stop_fail.switch_widget.isChecked()
+            "minimize_to_tray": self.sw_minimize.switch_widget.isChecked()
         }
 
     def set_running_state(self, is_running: bool):
         self.btn_chrom.setEnabled(not is_running)
         self.btn_ff.setEnabled(not is_running)
         self.sw_minimize.switch_widget.setEnabled(not is_running)
-        self.sw_autostart.switch_widget.setEnabled(not is_running)
-        self.sw_stop_fail.switch_widget.setEnabled(not is_running)

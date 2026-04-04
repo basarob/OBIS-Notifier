@@ -15,6 +15,10 @@ except ImportError:
     OBISNotifier = None
 
 from services.notification import NotificationService
+from services.browser import BrowserService
+from services.pdf_parser import PDFParserService
+from services.storage import ProfileStorageService
+import os
 
 class CheckWorker(QThread):
     """
@@ -70,3 +74,70 @@ class TestMailWorker(QThread):
         except Exception as e:
             logging.error(f"TestMailWorker Hatası: {e}")
             self.result_signal.emit(False, "Test maili gönderilemedi. Bilgileri/İnternet bağlantınızı kontrol edin.")
+
+class LoginWorker(QThread):
+    """
+    Arka planda BrowserService ile giriş dener ve profil bilgilerini çeker.
+    """
+    result_signal = pyqtSignal(bool, str) # success, message
+    status_signal = pyqtSignal(str) # UI durum bilgisini günceller
+
+    def __init__(self, user, pwd):
+        super().__init__()
+        self.user = user
+        self.pwd = pwd
+
+    def run(self):
+        try:
+            # .Tarayıcıyı headless (görünmez) başlat
+            browser = BrowserService(headless=True)
+            browser.start_browser()
+            
+            # Login dene
+            is_success = browser.login(self.user, self.pwd)
+            
+            if is_success:
+                # Başarılı girişten sonra profile verisini kontrol et
+                profile_dir = os.path.join(os.getenv('LOCALAPPDATA'), 'OBISNotifier')
+                os.makedirs(profile_dir, exist_ok=True)
+                profile_file = os.path.join(profile_dir, 'profile.json')
+                
+                if not os.path.exists(profile_file):
+                    self.status_signal.emit("Profil Bilgileri Alınıyor...")
+                    try:
+                        logging.info("Bilgileri çekme işlemi başlatılıyor...")
+                        pdf_path = browser.download_graduation_pdf()
+                        if pdf_path and os.path.exists(pdf_path):
+                            logging.info(f"PDF başarıyla indi: {pdf_path}")
+                            
+                            parser_service = PDFParserService()
+                            storage_service = ProfileStorageService(profile_file)
+                            
+                            parsed_data = parser_service.extract_graduation_data(pdf_path)
+
+                            if storage_service.save_profile_data(parsed_data):
+                                logging.info("Profil JSON dosyasına başarıyla kaydedildi!")
+                            else:
+                                logging.error("Profil JSON kaydedilemedi!")
+                            
+                            try:
+                                os.remove(pdf_path)
+                                logging.info("PDF dosyası silindi.")
+                            except OSError:
+                                logging.error("PDF dosyası silinemedi!")
+                        else:
+                            logging.error("PDF yolu alınamadı veya dosya mevcut değil!")
+                            self.result_signal.emit(False, "Veriler çekilemedi!", {})
+
+                    except Exception as pdf_err:
+                        logging.error(f"Bilgileri çekme sırasında hata: {pdf_err}")
+                        self.result_signal.emit(False, "Veriler çekilemedi!", {})
+                        
+                browser.close_browser()
+                self.result_signal.emit(True, "Giriş Başarılı! Yönlendiriliyorsunuz...")
+            else:
+                browser.close_browser()
+                self.result_signal.emit(False, "Giriş Başarısız! Lütfen bilgilerinizi kontrol ediniz.")
+                
+        except Exception as e:
+            self.result_signal.emit(False, f"Sistem hatası: {str(e)}")
