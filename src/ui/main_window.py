@@ -203,12 +203,10 @@ class MainWindow(QMainWindow):
                     pass
             
             # Yarıda kalmış klasörü temizle ki bir dahaki sefere baştan saf temiz insin
-            # İşlemlerin tam sonlanıp dosyaların serbest bırakılması için ufak bir gecikme
-            import time
-            time.sleep(0.5)
-            
+            # İşlemlerin tam sonlanıp dosyaların serbest bırakılması için asenkron gecikme
+            from PyQt6.QtCore import QTimer
             from ui.utils.startup import StartupManager
-            StartupManager.cleanup_and_exit()
+            QTimer.singleShot(500, StartupManager.cleanup_and_exit)
             event.accept()
             return
             

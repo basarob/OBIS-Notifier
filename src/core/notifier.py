@@ -47,9 +47,20 @@ class OBISNotifier:
         self.storage_service = GradeStorageService(json_path)
 
         # 2. Bildirim Servisi
+        sender_email = settings.get("sender_email", "")
+        gmail_password = settings.get("gmail_app_password", "")
+        
+        # Gmail şifresi artık keyring'de saklanıyor, settings dict'te yoksa kasadan oku
+        if not gmail_password and sender_email:
+            try:
+                import keyring
+                gmail_password = keyring.get_password("OBISNotifier_Gmail", sender_email) or ""
+            except Exception as e:
+                logging.error(f"Gmail şifresi keyring'den okunamadı: {e}")
+        
         self.notification_service = NotificationService(
-            sender_email=settings.get("sender_email", ""),
-            sender_password=settings.get("gmail_app_password", ""),
+            sender_email=sender_email,
+            sender_password=gmail_password,
             notification_methods=settings.get("notification_methods", ["email"]),
             timeline_callback=self.timeline_callback
         )
@@ -98,8 +109,8 @@ class OBISNotifier:
             self.browser_service.start_browser()
 
             if self.browser_service.login(self.student_id, self.password):
-                # Başarılı giriş -> Hata sayacını sıfırla
-                self.consecutive_failures = 0
+                # Login başarılı — ama sayaç henüz sıfırlanmaz.
+                # Tüm süreç (navigasyon + parse + kayıt) başarılı tamamlanırsa sıfırlanır.
 
                 try:
                     if not self.browser_service.navigate_to_grades(self.semester):
@@ -135,6 +146,8 @@ class OBISNotifier:
 
                         self.storage_service.save_grades(new_grades)
 
+                        # Tüm döngü başarıyla tamamlandı — sayacı sıfırla
+                        self.consecutive_failures = 0
                         result["success"] = True
                         result["changes"] = changes
                         result["message"] = status_msg
@@ -144,16 +157,35 @@ class OBISNotifier:
                         logging.error(error_msg)
                         self._emit_timeline(error_msg, "error")
                         result["message"] = error_msg
+                        self.consecutive_failures += 1
+
+                        if self.stop_on_failures and self.consecutive_failures >= 3:
+                            stop_msg = "3 ardışık başarısız kontrol! Sistem durduruluyor."
+                            logging.error(stop_msg)
+                            self._emit_timeline(stop_msg, "error")
+                            self.notification_service.send_failure_notification()
+                            result["should_stop"] = True
                 except ValueError as ve:
+                    # Dönem bulunamadı — yapısal hata, tekrar denemek anlamsız
                     error_msg = str(ve)
+                    self.consecutive_failures += 1
                     self._emit_timeline(error_msg, "error")
                     result["message"] = error_msg
                     result["should_stop"] = True
+                    self.notification_service.send_failure_notification()
                 except Exception as e:
                     error_msg = f"Navigasyon hatası: {str(e)}"
                     logging.error(error_msg)
                     self._emit_timeline(error_msg, "error")
                     result["message"] = error_msg
+                    self.consecutive_failures += 1
+
+                    if self.stop_on_failures and self.consecutive_failures >= 3:
+                        stop_msg = f"3 ardışık başarısız kontrol! Sistem durduruluyor. (Son hata: {error_msg})"
+                        logging.error(stop_msg)
+                        self._emit_timeline(stop_msg, "error")
+                        self.notification_service.send_failure_notification()
+                        result["should_stop"] = True
             else:
                 # Giriş başarısız
                 self.consecutive_failures += 1
@@ -182,6 +214,7 @@ class OBISNotifier:
             if self.stop_on_failures and self.consecutive_failures >= 3:
                 result["should_stop"] = True
                 self._emit_timeline("3 ardışık hata! Sistem durduruluyor.", "error")
+                self.notification_service.send_failure_notification()
 
             return result
 

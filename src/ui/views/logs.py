@@ -261,14 +261,24 @@ class LogsView(QWidget):
         self.table.scrollToBottom()
 
     def _filter_logs(self, text):
+        """Log kayıtlarını metin aramasıyla filtreler. Level sütunu dahil tüm sütunlarda arar."""
+        search_text = text.lower()
         rows = self.table.rowCount()
         for i in range(rows):
             match = False
-            for j in range(3):
+            # Timestamp (sütun 0) ve Message (sütun 2) — standart QTableWidgetItem
+            for j in [0, 2]:
                 item = self.table.item(i, j)
-                if item and text.lower() in item.text().lower():
+                if item and search_text in item.text().lower():
                     match = True
                     break
+            # Level (sütun 1) — setCellWidget ile eklenmiş, QLabel'dan oku
+            if not match:
+                cell_widget = self.table.cellWidget(i, 1)
+                if cell_widget:
+                    lbl = cell_widget.findChild(QLabel)
+                    if lbl and search_text in lbl.text().lower():
+                        match = True
             self.table.setRowHidden(i, not match)
 
     def _clear_logs(self):

@@ -31,6 +31,8 @@ class OBISColors:
     
     # Durum Renkleri
     SUCCESS = "#10B981"        # Yeşil (Aktif/Başarılı)
+    SUCCESS_HOVER = "#059669"  # Koyu Yeşil (Hover)
+    SUCCESS_PRESSED = "#047857" # En Koyu Yeşil (Pressed)
     SUCCESS_BG = "#D1FAE5"     # Yeşil Arka Plan (Badge için)
     DANGER = "#EF4444"         # Kırmızı (Hata/Çıkış)
     DANGER_BG = "#FEE2E2"      # Kırmızı Arka Plan
@@ -284,7 +286,8 @@ class OBISFonts:
         """
         # Font dizinini bul
         if getattr(sys, 'frozen', False):
-            base_path = sys._MEIPASS
+            # EXE modunda fontlar --add-data ile 'fonts' alt dizinine paketleniyor
+            base_path = os.path.join(sys._MEIPASS, "fonts")
         else:
             base_dir = os.path.dirname(os.path.abspath(__file__)) # styles/
             base_path = os.path.join(base_dir, "fonts")

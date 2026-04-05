@@ -88,8 +88,7 @@ class OBISSwitch(QWidget):
             bg = self._active_color
         else:
             # Pasif renge yakın (Gri)
-            # INPUT_BG çok açık, biraz koyultalım ki beyaz zeminde görünsün
-            bg = QColor("#E5E7EB") 
+            bg = QColor(OBISColors.PRESSED_LIGHT) 
             
         painter.setBrush(QBrush(bg))
         painter.setPen(Qt.PenStyle.NoPen)

@@ -72,11 +72,11 @@ class OBISButton(QPushButton):
                     color: {OBISColors.TEXT_WHITE};
                 }}
                 QPushButton:hover {{
-                    background-color: #059669; /* Daha koyu yeşil hover */
+                    background-color: {OBISColors.SUCCESS_HOVER};
                     color: {OBISColors.TEXT_WHITE};
                 }}
                 QPushButton:pressed {{
-                    background-color: #047857; /* En koyu yeşil */
+                    background-color: {OBISColors.SUCCESS_PRESSED};
                     color: {OBISColors.TEXT_WHITE};
                 }}
             """

@@ -146,6 +146,9 @@ class BrowserService:
 
             return True
             
+        except ValueError:
+            # Dönem bulunamadı gibi yapısal hatalar üst katmana (notifier) iletilmeli
+            raise
         except Exception as e:
             logging.error(f"Notlar sayfasına geçişte hata: {str(e)}")
             return False
@@ -200,8 +203,8 @@ class BrowserService:
             appdata_dir = os.path.join(os.getenv('LOCALAPPDATA'), 'OBISNotifier')
             os.makedirs(appdata_dir, exist_ok=True) # Klasör yoksa oluştur
             
-            # 5. Geçici bir yola kaydet
-            temp_path = os.path.join(os.getcwd(), "temp_mezuniyet.pdf")
+            # Geçici dosyayı AppData içine kaydet (CWD System32 olabilir)
+            temp_path = os.path.join(appdata_dir, "temp_mezuniyet.pdf")
             download.save_as(temp_path)
             
             return temp_path

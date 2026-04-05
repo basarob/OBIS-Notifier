@@ -32,7 +32,7 @@ jobs:
         shell: cmd
         run: |
           if not exist "dist" mkdir "dist"
-          pyinstaller --noconsole --onefile --name "OBISNotifier" --distpath "dist" --workpath "build" --icon="src/images/icon.ico" --add-data "src/images;images" --paths="src" src/main.py
+          pyinstaller --noconsole --onefile --name "OBISNotifier" --distpath "dist" --workpath "build" --icon="src/images/icon.ico" --add-data "src/images;images" --add-data "src/ui/styles/fonts;fonts" --add-data "src/ui/styles/global.qss;ui/styles" --paths="src" src/main.py
 
       - name: EXE'yi Release'e Yükle
         if: github.event_name == 'release'

@@ -15,8 +15,9 @@ from ..styles.theme import OBISColors, OBISFonts, OBISDimens, OBISStyles
 from ..utils.animations import OBISAnimations
 from services.storage import ProfileStorageService
 from services.pdf_parser import PDFParserService
+from utils.system import get_user_data_dir
 
-PROFILE_FILE = os.path.join(os.getenv('LOCALAPPDATA'), 'OBISNotifier', 'profile.json')
+PROFILE_FILE = os.path.join(get_user_data_dir(), 'profile.json')
 
 class ProfileUpdateWorker(QThread):
     """PDF indirme ve ayrıştırma işlemlerini arayüzü dondurmadan arka planda yapar."""

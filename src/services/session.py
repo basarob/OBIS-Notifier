@@ -10,9 +10,11 @@ import keyring
 import logging
 from typing import Optional, Tuple
 
+from utils.system import get_user_data_dir
+
 # Sabitler
 APP_NAME = "OBISNotifier"
-APPDATA_DIR = os.path.join(os.getenv('LOCALAPPDATA'), 'OBISNotifier')
+APPDATA_DIR = get_user_data_dir()
 SESSION_FILE = os.path.join(APPDATA_DIR, 'session.json')
 PROFILE_FILE = os.path.join(APPDATA_DIR, 'profile.json')
 

@@ -4,6 +4,13 @@ import logging
 import re
 from datetime import datetime
 
+# Önceden derlenmiş regex pattern'ları (performans optimizasyonu)
+_RE_STUDENT_INFO = re.compile(r"^(\d{9})\s+(.+?)\s+(\d)\s+(\d[.,]\d{2})\s+(.+)$")
+_RE_AKTS = re.compile(r"^(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)$")
+_RE_COURSE = re.compile(r"^([A-Za-zÇĞİÖŞÜçğıöşü]{2,5}\d{3})\s+(.+?)\s+(\d{2}/\d{2}\s+(?:Güz|Bahar|Hazırlık|Yaz))\s+([A-Z0-9]+)\s+(\d{1,2})$")
+_RE_PROGRAM = re.compile(r"^(\d\.\s*Yarıyıl)\s+(.+?)\s+(\d{1,2})(?:\s+([A-Za-zÇĞİÖŞÜçğıöşü]{2,5}\d{3}.*))?$")
+_RE_REMAINING = re.compile(r"^(.+?)\s+(\d{1,2})\s+(\d{2}/\d{2}\s+(?:Güz|Bahar|Hazırlık|Yaz))\s+([A-Z0-9]+)$")
+
 class PDFParserService:
     """Öğrenci Mezuniyet Kontrol PDF'ini satır satır metin üzerinden okuyarak verileri ayrıştırır."""
     
@@ -42,8 +49,8 @@ class PDFParserService:
                 if not line:
                     continue
                     
-                # 1. ÖĞRENCİ BİLGİLERİ REGEX
-                match_info = re.match(r"^(\d{9})\s+(.+?)\s+(\d)\s+(\d[.,]\d{2})\s+(.+)$", line)
+                # 1. ÖĞRENCİ BİLGİLERİ
+                match_info = _RE_STUDENT_INFO.match(line)
                 if match_info:
                     result["ogrenci_bilgileri"]["numara"] = match_info.group(1)
                     result["ogrenci_bilgileri"]["ad_soyad"] = match_info.group(2).strip()
@@ -52,8 +59,8 @@ class PDFParserService:
                     result["ogrenci_bilgileri"]["program"] = match_info.group(5).strip()
                     continue
 
-                # 2. AKTS REGEX (8 adet yan yana sayıyı yakalar)
-                match_akts = re.match(r"^(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)$", line)
+                # 2. AKTS (8 adet yan yana sayıyı yakalar)
+                match_akts = _RE_AKTS.match(line)
                 if match_akts and result["akts"]["basarilan"]["toplam"] == 0:
                     result["akts"]["basarilan"] = {
                         "zorunlu": int(match_akts.group(1)),
@@ -69,8 +76,8 @@ class PDFParserService:
                     }
                     continue
 
-                # 3. BAŞARILAN DERSLER REGEX
-                match_ders = re.match(r"^([A-Za-zÇĞİÖŞÜçğıöşü]{2,5}\d{3})\s+(.+?)\s+(\d{2}/\d{2}\s+(?:Güz|Bahar|Hazırlık|Yaz))\s+([A-Z0-9]+)\s+(\d{1,2})$", line)
+                # 3. BAŞARILAN DERSLER
+                match_ders = _RE_COURSE.match(line)
                 if match_ders:
                     result["basarilan_dersler"].append({
                         "kod": match_ders.group(1),
@@ -81,8 +88,8 @@ class PDFParserService:
                     })
                     continue
 
-                # 4. ÖĞRETİM PROGRAMI DERSLERİ REGEX
-                match_prog = re.match(r"^(\d\.\s*Yarıyıl)\s+(.+?)\s+(\d{1,2})(?:\s+([A-Za-zÇĞİÖŞÜçğıöşü]{2,5}\d{3}.*))?$", line)
+                # 4. ÖĞRETİM PROGRAMI DERSLERİ
+                match_prog = _RE_PROGRAM.match(line)
                 if match_prog:
                     item = {
                         "program_yariyil": match_prog.group(1),
@@ -98,7 +105,7 @@ class PDFParserService:
                     if remaining:
                         remaining = remaining.strip()
                         # Eğer sağ taraf doluysa onu da kendi içinde parçalıyoruz
-                        match_rem = re.match(r"^(.+?)\s+(\d{1,2})\s+(\d{2}/\d{2}\s+(?:Güz|Bahar|Hazırlık|Yaz))\s+([A-Z0-9]+)$", remaining)
+                        match_rem = _RE_REMAINING.match(remaining)
                         if match_rem:
                             item["basarilan_ders"] = match_rem.group(1).strip()
                             item["basarilan_akts"] = match_rem.group(2)

@@ -10,6 +10,7 @@ import json
 import os
 import logging
 import re
+import keyring
 import qtawesome as qta
 
 # UI Modülleri
@@ -24,6 +25,7 @@ from utils.system import get_user_data_dir
 from utils.date_utils import get_current_semester
 
 SETTINGS_FILE = os.path.join(get_user_data_dir(), "settings.json")
+GMAIL_KEYRING_SERVICE = "OBISNotifier_Gmail"  # Gmail şifresi için keyring servis adı
 
 
 class SettingsView(QWidget):
@@ -155,7 +157,6 @@ class SettingsView(QWidget):
                 "semester": get_current_semester(),
                 "notification_methods": [],
                 "sender_email": "",
-                "gmail_app_password": "",
                 "browser": "chromium",
                 "minimize_to_tray": False
             }
@@ -183,10 +184,33 @@ class SettingsView(QWidget):
 
         # Notification
         methods = settings.get("notification_methods", [])
+        sender_email = settings.get("sender_email", "")
+        
+        # Gmail şifresini keyring'den oku (güvenli kasa)
+        gmail_pwd = ""
+        if sender_email:
+            try:
+                gmail_pwd = keyring.get_password(GMAIL_KEYRING_SERVICE, sender_email) or ""
+            except Exception as e:
+                logging.error(f"Gmail şifresi keyring'den okunamadı: {e}")
+        
+        # Eski settings.json'da kalan şifreyi keyring'e taşı ve temizle (migrasyon)
+        if not gmail_pwd and settings.get("gmail_app_password"):
+            gmail_pwd = settings["gmail_app_password"]
+            if sender_email:
+                try:
+                    keyring.set_password(GMAIL_KEYRING_SERVICE, sender_email, gmail_pwd)
+                    settings.pop("gmail_app_password", None)
+                    with open(SETTINGS_FILE, "w", encoding="utf-8") as fw:
+                        json.dump(settings, fw, indent=4)
+                    logging.info("Gmail şifresi keyring'e taşındı, settings.json temizlendi.")
+                except Exception as e:
+                    logging.error(f"Gmail şifre migrasyonu başarısız: {e}")
+        
         self.card_notification.set_data(
             "email" in methods,
-            settings.get("sender_email", ""),
-            settings.get("gmail_app_password", "")
+            sender_email,
+            gmail_pwd
         )
 
         # Advanced (stop_on_failures artık çekirdekte kalıcı, UI'da gösterilmiyor)
@@ -229,10 +253,17 @@ class SettingsView(QWidget):
                 "semester": auto_data["semester"],
                 "notification_methods": methods,
                 "sender_email": notif_data["email_address"],
-                "gmail_app_password": notif_data["email_pwd"],
                 "browser": adv_data["browser"],
                 "minimize_to_tray": adv_data["minimize_to_tray"]
             })
+            
+            # Gmail şifresini düz metin yerine güvenli kasaya (keyring) kaydet
+            current_settings.pop("gmail_app_password", None)  # Eski key varsa temizle
+            if notif_data["email_address"] and notif_data["email_pwd"]:
+                try:
+                    keyring.set_password(GMAIL_KEYRING_SERVICE, notif_data["email_address"], notif_data["email_pwd"])
+                except Exception as e:
+                    logging.error(f"Gmail şifresi kasaya kaydedilemedi: {e}")
             
             with open(SETTINGS_FILE, "w", encoding="utf-8") as f:
                 json.dump(current_settings, f, indent=4)

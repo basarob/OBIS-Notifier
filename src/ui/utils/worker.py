@@ -127,11 +127,9 @@ class LoginWorker(QThread):
                                 logging.error("PDF dosyası silinemedi!")
                         else:
                             logging.error("PDF yolu alınamadı veya dosya mevcut değil!")
-                            self.result_signal.emit(False, "Veriler çekilemedi!", {})
 
                     except Exception as pdf_err:
                         logging.error(f"Bilgileri çekme sırasında hata: {pdf_err}")
-                        self.result_signal.emit(False, "Veriler çekilemedi!", {})
                         
                 browser.close_browser()
                 self.result_signal.emit(True, "Giriş Başarılı! Yönlendiriliyorsunuz...")

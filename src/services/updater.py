@@ -16,14 +16,16 @@ from config import CURRENT_VERSION
 from PyQt6.QtCore import QThread, pyqtSignal
 
 def is_newer_version(latest: str, current: str) -> bool:
-    """Semantik versiyon kontrolü yapar (Örn: 3.1 > 3.0)."""
+    """Semantik versiyon kontrolü yapar (Örn: 3.1 > 3.0). 'v' prefix'i otomatik temizlenir."""
     try:
         def parse(v):
-            return [int(x) for x in v.split('-')[0].split('.')]
+            return [int(x) for x in v.lstrip("v").split('-')[0].split('.')]
         return parse(latest) > parse(current)
     except Exception:
-        # Fallback (Integer çevrimi başarısız olursa düz string kıyası, ancak güvenli olmaz)
-        return latest != current and latest > current
+        # Fallback (Integer çevrimi başarısız olursa düz string kıyası)
+        clean_latest = latest.lstrip("v")
+        clean_current = current.lstrip("v")
+        return clean_latest != clean_current and clean_latest > clean_current
 
 class UpdateWorker(QThread):
     """

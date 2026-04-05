@@ -38,7 +38,7 @@ echo.
 echo [4/4] Uygulama (EXE) olusturuluyor...
 echo Bu islem biraz zaman alabilir...
 if not exist "dist" mkdir "dist"
-pyinstaller --noconsole --onefile --name "OBISNotifier" --distpath "dist" --workpath "build" --icon="src/images/icon.ico" --add-data "src/images;images" --paths="src" src/main.py
+pyinstaller --noconsole --onefile --name "OBISNotifier" --distpath "dist" --workpath "build" --icon="src/images/icon.ico" --add-data "src/images;images" --add-data "src/ui/styles/fonts;fonts" --add-data "src/ui/styles/global.qss;ui/styles" --paths="src" src/main.py
 
 IF %ERRORLEVEL% EQU 0 (
     echo.

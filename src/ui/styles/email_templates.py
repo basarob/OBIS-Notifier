@@ -99,7 +99,7 @@ class OBISEmailTemplates:
                     <div style="padding: 24px;">
                         <div style="font-size: 16px; color: {OBISColors.TEXT_PRIMARY}; margin-bottom: 20px;">
                             Merhaba,<br><br>
-                            OBIS sistemine <b>ardışık 3 kez</b> giriş yapılamadı.<br>
+                            OBIS Not not kontrolü esnasında <b>ardışık 3 kez</b> hata meydana geldi.<br>
                             Güvenlik nedeniyle veya şifre değişikliği/sistem hatası kaynaklı izleme durduruldu.<br><br>
                             Lütfen uygulama üzerinden bilgilerinizi kontrol edip sistemi tekrar başlatın.
                         </div>

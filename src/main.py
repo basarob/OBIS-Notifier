@@ -87,6 +87,18 @@ def main():
     window = MainWindow()
     window.show()
     
+    # Uygulama kapanırken aktif thread ve tarayıcı kaynaklarını temizle
+    def _cleanup():
+        """Kapanış öncesi aktif arka plan işlemlerini güvenli biçimde sonlandırır."""
+        try:
+            if hasattr(window, 'dash_view') and window.dash_view.is_system_running:
+                window.dash_view.force_stop()
+                logging.info("Kapanış temizliği: Sistem durduruldu.")
+        except Exception as e:
+            logging.error(f"Kapanış temizliği hatası: {e}")
+
+    app.aboutToQuit.connect(_cleanup)
+    
     sys.exit(app.exec())
 
 if __name__ == "__main__":
