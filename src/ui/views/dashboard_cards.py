@@ -4,10 +4,7 @@ Sadece arayüz çizimiyle ilgilenirler. Mantıksal işlevleri (controller)
 Sinyaller (Signals) aracılığıyla ana DashboardView'a bildirirler.
 """
 
-from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel,
-    QScrollArea, QFrame, QSizePolicy
-)
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel,QScrollArea, QFrame, QSizePolicy
 from PyQt6.QtCore import Qt, QSize, pyqtSignal
 from ..components.card import OBISCard
 from ..components.button import OBISButton

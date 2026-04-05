@@ -11,6 +11,8 @@ import subprocess
 from PyQt6.QtCore import pyqtSignal, QThread
 from playwright.sync_api import sync_playwright
 
+_active_process = None  # Kurulum sırasında iptal edilirse durdurabilmek için global değişken
+
 def ensure_browsers_installed(status_callback=None) -> bool:
     """
     Playwright tarayıcılarının (Chromium ve Firefox) yüklü olup olmadığını kontrol eder.
@@ -68,11 +70,17 @@ def ensure_browsers_installed(status_callback=None) -> bool:
                     sys.argv = old_argv
         else:
             # Geliştirme ortamında subprocess ile kurulum
-            subprocess.run(
+            global _active_process
+            _active_process = subprocess.Popen(
                 [sys.executable, "-m", "playwright", "install", "chromium", "firefox"],
-                check=True,
                 env=env
             )
+            _active_process.wait()
+            ret = _active_process.returncode
+            _active_process = None
+            
+            if ret != 0:
+                raise Exception(f"Playwright install başarısız oldu (Hata Kodu: {ret})")
             
         _notify("Tarayıcı kurulumu tamamlandı.")
         return True

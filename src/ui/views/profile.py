@@ -4,7 +4,7 @@ BU DOSYA: Kullanıcı profil bilgilerini gösterir, bilgilerini güncelleme ve
 """
 
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel, QFrame
-from PyQt6.QtCore import Qt, pyqtSignal, QSize, QTimer, QThread
+from PyQt6.QtCore import Qt, pyqtSignal, QSize, QThread
 import qtawesome as qta
 import datetime
 import os
@@ -341,4 +341,4 @@ class ProfileView(QWidget):
         Güncelle butonu tıklanabilir kalır ama snackbar ile uyarır.
         Çıkış butonu her zaman aktif kalır (güvenli kapanma sağlanır).
         """
-        self._is_system_running = is_running
+        self._is_system_running = is_running

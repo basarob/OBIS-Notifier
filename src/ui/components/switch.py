@@ -3,11 +3,11 @@ BU DOSYA: iOS tarzı animasyonlu Switch (Toggle) bileşeni içerir.
 QCheckBox yerine tamamen özelleştirilmiş bir widget'tır.
 """
 
-from PyQt6.QtWidgets import QWidget, QCheckBox
-from PyQt6.QtCore import Qt, QSize, QPoint, QRect, QPropertyAnimation, QEasingCurve, pyqtProperty, pyqtSignal
+from PyQt6.QtWidgets import QWidget
+from PyQt6.QtCore import Qt, QRect, QPropertyAnimation, QEasingCurve, pyqtProperty, pyqtSignal
 from PyQt6.QtGui import QPainter, QColor, QBrush, QPen, QMouseEvent
 
-from ..styles.theme import OBISColors, OBISDimens
+from ..styles.theme import OBISColors
 
 class OBISSwitch(QWidget):
     """

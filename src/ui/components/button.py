@@ -4,7 +4,7 @@ BU DOSYA: Farklı stillerde (Primary, Danger, Ghost) buton bileşeni.
 
 from PyQt6.QtWidgets import QPushButton
 from PyQt6.QtCore import Qt, QSize
-from PyQt6.QtGui import QIcon, QCursor
+from PyQt6.QtGui import QCursor
 import qtawesome as qta
 from ..styles.theme import OBISColors, OBISDimens, OBISFonts
 

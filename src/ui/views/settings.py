@@ -4,7 +4,7 @@ BU DOSYA: Uygulama yapılandırma ayarlarının yönetildiği kontrolör (Contro
 - Load, Save ve sistem güvenliği (System Running Check) işlemlerini yönetir.
 """
 
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QScrollArea, QFrame, QLabel
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QScrollArea, QFrame
 from PyQt6.QtCore import Qt, pyqtSignal
 import json
 import os

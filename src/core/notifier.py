@@ -10,8 +10,7 @@ kontrollü şekilde yönetilir.
 
 import logging
 import os
-from typing import Dict, Any, Optional, Callable, List
-from datetime import datetime
+from typing import Dict, Any, Optional, Callable
 
 # Servisler
 from services.browser import BrowserService

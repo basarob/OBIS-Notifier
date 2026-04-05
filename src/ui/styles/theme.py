@@ -3,7 +3,7 @@ BU DOSYA: Uygulamanın renk paletini, fontlarını ve stil sabitlerini tutar.
 Referans görsellere uygun piksel mükemmelliğinde tasarım sağlar.
 """
 
-from PyQt6.QtGui import QColor, QFont, QFontDatabase
+from PyQt6.QtGui import QFont, QFontDatabase
 import os
 import sys
 

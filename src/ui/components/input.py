@@ -3,7 +3,7 @@ BU DOSYA: Solunda ikon olabilen, modern görünümlü input bileşeni.
 """
 
 from PyQt6.QtWidgets import QLineEdit, QFrame, QHBoxLayout, QLabel
-from PyQt6.QtCore import Qt, QSize, pyqtSignal
+from PyQt6.QtCore import QSize, pyqtSignal
 from ..styles.theme import OBISColors, OBISDimens, OBISFonts
 from .button import OBISIconButton
 import qtawesome as qta

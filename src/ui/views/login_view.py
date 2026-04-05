@@ -3,12 +3,13 @@ BU DOSYA: Kullanıcının OBIS bilgilerini girerek sisteme
 giriş yaptığı ekran.
 """
 
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel, QMessageBox, QLineEdit, QApplication
-from PyQt6.QtCore import Qt, pyqtSignal, QSize, QThread, QTimer
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel, QMessageBox, QLineEdit
+from PyQt6.QtCore import Qt, pyqtSignal, QSize, QTimer
 from PyQt6.QtGui import QPixmap
 import os
 import sys
-import shutil
+import logging
+from config import CURRENT_VERSION
 from ..components.card import OBISCard
 from ..components.input import OBISInput
 from ..components.button import OBISButton
@@ -171,7 +172,7 @@ class LoginView(QWidget):
         layout = QVBoxLayout()
         layout.setSpacing(2)
         
-        footer_lbl = QLabel("Obis Notifier v3.0")
+        footer_lbl = QLabel(f"Obis Notifier {CURRENT_VERSION}")
         footer_lbl.setFont(OBISFonts.SMALL)
         footer_lbl.setStyleSheet(f"color: {OBISColors.TEXT_GHOST};")
         footer_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -292,6 +293,10 @@ class LoginView(QWidget):
     def _on_login_clicked(self):
         """Giriş butonuna basılınca (Validasyonlu)"""
         
+        # Eğer buton kilitliyse (Sistem kurulumu veya Giriş yapma evresindeyse) işlem yapma
+        if not self.btn_login.isEnabled():
+            return
+            
         if not self._system_ready:
             self._start_startup_checks()
             return

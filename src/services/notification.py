@@ -7,7 +7,6 @@ import logging
 import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from datetime import datetime
 from typing import List, Dict, Any, Optional, Callable
 from ui.styles.email_templates import OBISEmailTemplates
 

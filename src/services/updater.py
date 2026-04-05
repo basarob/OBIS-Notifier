@@ -11,13 +11,12 @@ import tempfile
 import urllib.request
 import urllib.error
 import json
-import subprocess
+
+from config import CURRENT_VERSION
 from PyQt6.QtCore import QThread, pyqtSignal
 
-CURRENT_VERSION = "3.0.0"
-
 def is_newer_version(latest: str, current: str) -> bool:
-    """Semantik versiyon kontrolü yapar (Örn: 3.0.1 > 3.0.0)."""
+    """Semantik versiyon kontrolü yapar (Örn: 3.1 > 3.0)."""
     try:
         def parse(v):
             return [int(x) for x in v.split('-')[0].split('.')]

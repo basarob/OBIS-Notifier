@@ -1,3 +1,9 @@
+"""
+BU DOSYA: Uygulama açılırken yapılacak işlemleri yönetir.
+Uygulama açılırken önce UpdateWorker ile sürüm kontrolü,
+ardından SystemCheckWorker ile Playwright tarayıcı kontrolü yapar.
+"""
+
 from PyQt6.QtCore import QObject, pyqtSignal
 import os
 import shutil
@@ -8,11 +14,6 @@ from services.updater import UpdateWorker
 from services.system_check import SystemCheckWorker
 
 class StartupManager(QObject):
-    """
-    Uygulama açılırken önce UpdateWorker ile sürüm kontrolü,
-    ardından SystemCheckWorker ile Playwright tarayıcı kontrolü yapar.
-    Sıralı kontrol mantığını LoginView'dan dışarı çıkartmak için tasarlandı.
-    """
     status_changed = pyqtSignal(str)
     finished = pyqtSignal(bool) # success
 

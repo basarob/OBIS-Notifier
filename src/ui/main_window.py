@@ -21,6 +21,7 @@ from .views.settings import SettingsView
 from .views.logs import LogsView
 from .views.profile import ProfileView
 
+from config import CURRENT_VERSION
 from services.session import SessionManager
 from utils.system import get_user_data_dir
 import logging
@@ -29,7 +30,7 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         
-        self.setWindowTitle("OBIS Notifier v3.0")
+        self.setWindowTitle(f"OBIS Notifier {CURRENT_VERSION}")
         self.setFixedSize(1152, 648)
         
         # Merkezi Widget
@@ -184,6 +185,33 @@ class MainWindow(QMainWindow):
         QApplication.quit()
 
     def closeEvent(self, event):
+        # Tıpkı internet kesintisi/error gibi, eğer kullanıcı tarayıcı iniyorken zorla çarpıya basıp çıkarsa
+        # orphaned process (arkaplanda inmeye devam etme) oluşmasını önle ve bozuk dosyayı temizle
+        if getattr(self.login_view, "startup_manager", None) is not None:
+            # Eğer development ortamında iniyorsa subprocess.Popen'ı vur
+            from services.system_check import _active_process
+            if _active_process is not None:
+                try:
+                    import subprocess
+                    # Node.js gibi child processleri de (Process Tree) yokedebilmek için /T kullanıyoruz.
+                    subprocess.run(
+                        ['taskkill', '/F', '/T', '/PID', str(_active_process.pid)],
+                        capture_output=True,
+                        creationflags=subprocess.CREATE_NO_WINDOW
+                    )
+                except Exception:
+                    pass
+            
+            # Yarıda kalmış klasörü temizle ki bir dahaki sefere baştan saf temiz insin
+            # İşlemlerin tam sonlanıp dosyaların serbest bırakılması için ufak bir gecikme
+            import time
+            time.sleep(0.5)
+            
+            from ui.utils.startup import StartupManager
+            StartupManager.cleanup_and_exit()
+            event.accept()
+            return
+            
         settings_file = os.path.join(get_user_data_dir(), "settings.json")
         minimize_to_tray = False
         if os.path.exists(settings_file):

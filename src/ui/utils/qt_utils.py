@@ -3,7 +3,6 @@ BU DOSYA: PyQt6 için yardımcı fonksiyonlar ve efektler (Gölge vb.).
 """
 
 from PyQt6.QtWidgets import QGraphicsDropShadowEffect, QWidget, QLayout
-from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QColor
 from ..styles.theme import OBISColors
 

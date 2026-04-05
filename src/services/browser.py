@@ -4,15 +4,9 @@ login ve navigation işlemlerini yürütür.
 """
 
 import logging
-import sys
-import subprocess
-from typing import Optional, Dict
 import os
-
-# Playwright importları
+from typing import Optional
 from playwright.sync_api import sync_playwright, Browser, Page, Playwright
-
-# Konfigürasyon ve Selector importu (Relative import)
 from config import OBISSelectors
 
 
