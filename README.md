@@ -1,8 +1,6 @@
-## pyqt6 yapısına göre daha sonradan güncellenecek
-
 # 🎓 OBIS Notifier
 
-<img src="src/images/banner_placeholder.png" width="100%">
+<img src="src/images/banner.png" width="100%">
 
 <p align="center">
   <a href="#türkçe">Türkçe</a> •
@@ -21,54 +19,53 @@ Sürekli siteye girip "Acaba notum açıklandı mı?" diye F5 yapmaktan yorulduy
 
 ### ✨ Özellikler
 
-- **🔄 Otomatik Takip:** Belirlediğiniz aralıklarla (örneğin her 20 dakikada bir) notlarınızı kontrol eder.
-- **📩 Çoklu Bildirim:** Yeni bir not açıklandığında **E-posta** veya **Windows Bildirimi** (veya ikisi birden) alabilirsiniz.
-- **⬆️ Otomatik Güncelleme:** Uygulama açılışında yeni sürüm kontrolü yapar ve sizi uyarır.
-- **🖼️ Modern Arayüz:** Kullanıcı dostu, şık ve anlaşılır arayüz.
-- **🤖 Akıllı Kurulum:** Tek bir `EXE` dosyasıyla çalışır. Gerekli tarayıcı bileşenlerini otomatik kurar.
-- **🛡️ Güvenli:** Şifreniz sadece kendi bilgisayarınızda tutulur, dışarı aktarılmaz.
-- **🧹 Temiz Çalışma Alanı:** Ayarlar ve loglar `%AppData%` klasöründe saklanır, masaüstünüzü kirletmez.
+- **🔄 Otomatik Takip:** Belirlediğiniz aralıklarla notlarınızı arka planda (Thread-safe) kontrol eder.
+- **📩 Çoklu Bildirim:** Yeni bir not açıklandığında **E-posta Bildirimi** alabilirsiniz.
+- **🖼️ Modern Arayüz:** Tamamen modüler bileşenlerle geliştirilen kullanıcı dostu, şık ve piksel mükemmelliğinde arayüz.
+- **🤖 Akıllı Kurulum & Scraping:** Tek bir `EXE` dosyasıyla çalışır. Gerekli Playwright bileşenlerini bağımsız olarak kurar ve süreçleri yönetir.
+- **🛡️ Üst Düzey Güvenlik:** Şifreniz asla düz metin olarak saklanmaz, işletim sisteminin şifre kasasında (**Keyring**) güvenceye alınır.
+- **🧹 Temiz Çalışma Alanı:** Ayarlar ve loglar `%AppData%` klasöründe saklanır, bilgisayarınızı temiz tutar.
 
 ### ⚙️ Kullanılan Teknolojiler
 
-Bu proje, modern ve güçlü kütüphaneler kullanılarak geliştirilmiştir:
+Bu proje, güçlü ve güncel kütüphaneler kullanılarak "Clean Architecture" prensiplerine sadık kalınarak yeniden yazılmıştır:
 
 - **[Python 3.11](https://www.python.org/):** Ana programlama dili.
-- **[Playwright](https://playwright.dev/):** Hızlı ve güvenilir web otomasyonu (Scraping) için.
-- **[CustomTkinter](https://github.com/TomSchimansky/CustomTkinter):** Modern ve şık arayüz tasarımı için.
-- **[GitHub Actions](https://github.com/features/actions):** Otomatik derleme (CI/CD) süreçleri için.
+- **[PyQt6](https://riverbankcomputing.com/software/pyqt/intro):** Asenkron destekli, Thread-safe modern masaüstü arayüzü tasarımı.
+- **[Playwright](https://playwright.dev/):** Hızlı, gizli (headless) ve güvenilir web otomasyonu / scraping için.
+- **[Keyring](https://pypi.org/project/keyring/):** Hassas oturum bilgilerinin şifrelenmesi için OS şifre kasası entegrasyonu.
+- **[pdfplumber](https://github.com/jsvine/pdfplumber) & [beautifulsoup4](https://www.crummy.com/software/BeautifulSoup/):** Belge ve DOM ayrıştırma (parsing) işlemleri için.
 
 ### 📂 Proje Yapısı
 
-```
+Uygulama **Modüler Monolitik** bir yapıda olup Presentation (UI) ve Logic (Core) kesin çizgilerle birbirinden ayrılmıştır.
+
+```text
 OBIS-Notifier/
-├── .github/          # GitHub Actions (Otomatik Build)
+├── .github/          # GitHub Actions (Otomatik Build CI/CD)
 ├── src/              # Kaynak Kodlar (Source)
-│   ├── core/         # Çekirdek Mantık (Notifier Facade)
-│   ├── services/     # Servisler (Browser, Grades, Notification)
-│   ├── ui/           # Arayüz (GUI) Kodları
-│   ├── utils/        # Yardımcı Araçlar
-│   ├── config.py     # Konfigürasyon
+│   ├── core/         # İş Mantığı (Notifier Facade)
+│   ├── services/     # Servisler (Browser, Oturum/Keyring, Notlar, PDF)
+│   ├── ui/           # Arayüz (PyQt6 - Components, Views, Theme, qss)
+│   ├── utils/        # Loglama ve Yardımcı Araçlar
+│   ├── config.py     # Konfigürasyon ve Global Varsayılanlar
 │   └── main.py       # Başlangıç Noktası (Entry Point)
-├── .gitattributes/   # Git ayarları
-├── .gitignore/       # Git ignore dosyaları
-├── LICENSE           # Lisans dosyası
-├── README.md         # Okunabilir proje tanıtımı
-├── requirements.txt  # Gerekli kütüphaneler
-└── setup.bat         # Yerel kurulum ve EXE oluşturma aracı
+├── README.md         # Okunabilir proje tanıtımı (Bu dosya)
+├── requirements.txt  # Gerekli bağımlılıklar
+└── setup.bat         # Yerel kurulum ve EXE oluşturma betiği
 ```
 
 ### 📦 Kurulum ve Kullanım
 
 1. **İndirin:** [Releases](https://github.com/basarob/OBIS-Notifier/releases) sayfasından en güncel `OBISNotifier.exe` dosyasını indirin.
-2. **Çalıştırın:** İndirdiğiniz dosyayı çift tıklayarak açın. (Gerekirse yönetici olarak çalıştırın).
+2. **Çalıştırın:** İndirdiğiniz dosyayı çift tıklayarak açın.
 3. **Ayarlayın:**
-   - **Öğrenci No:** Okul numaranız (Sistem `@stu.adu.edu.tr` otomatik ekler).
-   - **OBIS Şifre:** Okul şifreniz.
-   - **Bildirim Tercihi:** E-posta, Windows veya ikisini seçin.
+   - **Öğrenci Numarası:** Okul numaranız (Sistem `@stu.adu.edu.tr` otomatik ekler).
+   - **OBIS Şifresi:** Okul şifreniz.
+   - **Bildirim Tercihi:** E-posta.
    - **Gmail:** (E-posta seçiliyse) Bildirimlerin geleceği Gmail adresiniz.
    - **Uygulama Şifresi:** Gmail güvenlik ayarlarından alacağınız [Uygulama Şifresi](https://myaccount.google.com/apppasswords).
-4. **Başlatın:** "Sistemi Başlat" butonuna basın ve arkanıza yaslanın!
+4. **Başlatın:** "Sistemi Başlat" butonuna basın.
 
 > [!WARNING]
 > **Windows Uyarısı Hakkında:** Uygulama dijital imzaya sahip olmadığı için ilk çalıştırmada **Windows SmartScreen** uyarısı ("Windows kişisel bilgisayarınızı korudu") alabilirsiniz. Bu beklenen bir durumdur.
@@ -77,9 +74,9 @@ OBIS-Notifier/
 
 ### 📸 Ekran Görüntüleri
 
-|                       Ana Ekran                        |                          E-posta Bildirim                           |                          Windows Bildirim                          |
-| :----------------------------------------------------: | :-----------------------------------------------------------------: | :----------------------------------------------------------------: |
-| <img src="src/images/screenshot_main.png" width="250"> | <img src="src/images/screenshot_mail_notification.png" width="250"> | <img src="src/images/screenshot_win_notification.png" width="250"> |
+|                   Ana Ekran                    |                E-posta Bildirim                |
+| :--------------------------------------------: | :--------------------------------------------: |
+| <img src="src/images/ss_main.png" width="250"> | <img src="src/images/ss_mail.png" width="250"> |
 
 ---
 
@@ -87,45 +84,44 @@ OBIS-Notifier/
 
 ### 🚀 About The Project
 
-**OBIS Notifier** is a smart desktop automation tool designed for university students to track their grades on the **OBIS (Student Information System)** in real-time.
+**OBIS Notifier** is a smart desktop automation tool designed for university students to track their grades on the **OBIS (Student Information System)** in real-time and send notifications securely.
 
-Stop refreshing the page every 5 minutes! Let OBIS Notifier handle the stress for you.
+Stop refreshing the page every 5 minutes! Let OBIS Notifier handle the checking process silently in the background.
 
 ### ✨ Features
 
-- **🔄 Auto-Check:** Monitors your grades at set intervals (e.g., every 20 mins).
-- **📩 Multi-Notify:** Get alerts via **Email**, **Windows Notification**, or both when a grade is announced.
-- **⬆️ Auto-Updater:** Automatically checks for new versions on startup and notifies you.
-- **🖼️ Modern UI:** Sleek and user-friendly interface powered by CustomTkinter.
-- **🤖 Smart Setup:** Runs as a single portable `EXE`. Automatically installs necessary browser components.
-- **🛡️ Secure:** Your credentials are stored locally and never shared.
-- **🧹 Clean Workspace:** Settings and logs are stored in `%AppData%`, keeping your desktop clean.
+- **🔄 Auto-Check:** Monitors your grades at set intervals completely thread-safely in the background.
+- **📩 Multi-Notify:** Get alerts via **Email Notification** when a grade is announced.
+- **🖼️ Modern UI:** Fully modular, pixel-perfect user interface leveraging PyQt6 custom components and an integrated styling theme.
+- **🤖 Smart Setup & Scraping:** Runs as a single portable `EXE`. Automatically manages Playwright browser dependencies efficiently.
+- **🛡️ Top-Tier Security:** Your credentials are never stored in plain text. Passwords are securely saved in the OS **Keyring**.
+- **🧹 Clean Workspace:** Settings and logs are effectively stored securely away in `%AppData%`.
 
 ### ⚙️ Tech Stack
 
+This project is rebuilt from the ground up prioritizing Clean Architecture patterns via robust and modern libraries:
+
 - **[Python 3.11](https://www.python.org/)**
-- **[Playwright](https://playwright.dev/):** For reliable web scraping.
-- **[CustomTkinter](https://github.com/TomSchimansky/CustomTkinter):** For modern UI components.
-- **[GitHub Actions](https://github.com/features/actions):** For automated builds.
+- **[PyQt6](https://riverbankcomputing.com/software/pyqt/intro):** For asynchronous, multithreaded desktop GUI.
+- **[Playwright](https://playwright.dev/):** For fast, headless and reliable web scraping.
+- **[Keyring](https://pypi.org/project/keyring/):** To leverage OS-level credential vaults natively.
+- **[pdfplumber](https://github.com/jsvine/pdfplumber) & [beautifulsoup4](https://www.crummy.com/software/BeautifulSoup/):** For reliable data parsing and scraping fallbacks.
 
 ### 📂 Project Structure
 
-```
+```text
 OBIS-Notifier/
-├── .github/          # GitHub Actions (Auto Build)
+├── .github/          # GitHub Actions (Auto Build CI/CD)
 ├── src/              # Source Code
-│   ├── core/         # Core Logic (Notifier Facade)
-│   ├── services/     # Services (Browser, Grades, Notification)
-│   ├── ui/           # User Interface (GUI) Code
-│   ├── utils/        # Utility Functions
-│   ├── config.py     # Configuration
-│   └── main.py       # Entry Point
-├── .gitattributes/   # Git attributes
-├── .gitignore/       # Git ignore files
-├── LICENSE           # License file
-├── README.md         # Project description
-├── requirements.txt  # Dependencies
-└── setup.bat         # Local setup script
+│   ├── core/         # Business Logic Architecture Focus (Notifier Facade)
+│   ├── services/     # Services (Browser, Auth/Keyring, Scraping, PDF parsing)
+│   ├── ui/           # User Interface (PyQt Components, Views, Theme constants)
+│   ├── utils/        # Utilities (Qt Logging Handlers, Formatters)
+│   ├── config.py     # Global Configuration & Settings
+│   └── main.py       # App Entry Point (Main Loader)
+├── README.md         # Readme (This File)
+├── requirements.txt  # Project Dependencies
+└── setup.bat         # Local Build/Setup Script
 ```
 
 ### 📦 Installation & Usage
@@ -133,23 +129,23 @@ OBIS-Notifier/
 1. **Download:** Get the latest `OBISNotifier.exe` from the [Releases](https://github.com/basarob/OBIS-Notifier/releases) page.
 2. **Run:** Double-click the downloaded file.
 3. **Configure:**
-   - **Student ID:** Your university ID (`@stu.adu.edu.tr` is added automatically).
-   - **OBIS Password:** Your system password.
-   - **Notify Preference:** Choose Email, Windows, or both.
+   - **Öğrenci Numarası:** Your university ID (`@stu.adu.edu.tr` is added automatically).
+   - **OBIS Şifresi:** Your system password.
+   - **Notify Preference:** Choose Email.
    - **Gmail:** (If Email selected) The address to receive alerts.
-   - **App Password:** Your Google [App Password](https://myaccount.google.com/apppasswords).
-4. **Start:** Click "Start System" and relax!
+   - **Uygulama Şifresi:** Your Google [App Password](https://myaccount.google.com/apppasswords).
+4. **Start:** Click "Sistemi Başlat" button.
 
 > [!WARNING]
-> **About Windows Warning:** Since the application is not digitally signed, you may see a **Windows SmartScreen** warning ("Windows protected your PC") on the first run. This is expected behavior.
+> **About Windows Warning:** Since the application is not digitally signed, you may see a **Windows SmartScreen** warning on the first run. This is perfectly normal.
 >
 > To proceed: Click **More Info -> Run Anyway**.
 
 ### 📸 Screenshots
 
-|                      Main Screen                       |                         Email Notification                          |                        Windows Notification                        |
-| :----------------------------------------------------: | :-----------------------------------------------------------------: | :----------------------------------------------------------------: |
-| <img src="src/images/screenshot_main.png" width="250"> | <img src="src/images/screenshot_mail_notification.png" width="250"> | <img src="src/images/screenshot_win_notification.png" width="250"> |
+|                  Main Screen                   |               Email Notification               |
+| :--------------------------------------------: | :--------------------------------------------: |
+| <img src="src/images/ss_main.png" width="250"> | <img src="src/images/ss_mail.png" width="250"> |
 
 ---
 
@@ -158,7 +154,7 @@ OBIS-Notifier/
 #### Requirements
 
 - Python 3.11+
-- Playwright
+- Requirements stated in `requirements.txt` (Playwright, PyQt6, Keyring, etc.)
 
 #### Setup
 
@@ -167,7 +163,7 @@ git clone https://github.com/basarob/OBIS-Notifier.git
 cd OBIS-Notifier
 pip install -r requirements.txt
 playwright install
-python src/main_gui.py
+python src/main.py
 ```
 
 #### Build EXE
