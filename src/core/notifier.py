@@ -76,6 +76,16 @@ class OBISNotifier:
 
         # Durum Takibi
         self.consecutive_failures: int = 0
+        self.is_cancelled: bool = False
+
+    def cancel(self) -> None:
+        """Devam etmekte olan asenkron kontrolleri anında iptal eder."""
+        self.is_cancelled = True
+        try:
+            if hasattr(self, 'browser_service') and self.browser_service:
+                self.browser_service.close_browser()
+        except Exception as e:
+            logging.error(f"İptal işlemi sırasında hata: {e}")
 
     def _emit_timeline(self, message: str, msg_type: str = "info") -> None:
         """Dashboard timeline'a kritik durum mesajı gönderir (thread-safe sinyal üzerinden)."""
@@ -104,7 +114,12 @@ class OBISNotifier:
             "message": ""
         }
 
+        self.is_cancelled = False
+
         try:
+            if self.is_cancelled:
+                raise Exception("İşlem kullanıcı tarafından iptal edildi.")
+
             # --- Adım 1: Tarayıcı İşlemleri ---
             self.browser_service.start_browser()
 

@@ -59,21 +59,39 @@ def ensure_browsers_installed(status_callback=None) -> bool:
         if getattr(sys, 'frozen', False):
             # EXE ortamında Playwright CLI install
             from playwright.__main__ import main as pw_main
-            for browser_name in ["chromium", "firefox"]:
-                old_argv = sys.argv
-                sys.argv = ["playwright", "install", browser_name]
-                try:
-                    pw_main()
-                except SystemExit:
-                    pass
-                finally:
-                    sys.argv = old_argv
+            old_stdout = sys.stdout
+            old_stderr = sys.stderr
+            devnull = open(os.devnull, "w")
+            sys.stdout = devnull
+            sys.stderr = devnull
+            try:
+                for browser_name in ["chromium", "firefox"]:
+                    old_argv = sys.argv
+                    sys.argv = ["playwright", "install", browser_name]
+                    try:
+                        pw_main()
+                    except SystemExit:
+                        pass
+                    finally:
+                        sys.argv = old_argv
+            finally:
+                sys.stdout = old_stdout
+                sys.stderr = old_stderr
+                devnull.close()
         else:
             # Geliştirme ortamında subprocess ile kurulum
             global _active_process
+            kwargs = {
+                "env": env,
+                "stdout": subprocess.DEVNULL,
+                "stderr": subprocess.DEVNULL
+            }
+            if os.name == 'nt':
+                kwargs["creationflags"] = subprocess.CREATE_NO_WINDOW
+                
             _active_process = subprocess.Popen(
                 [sys.executable, "-m", "playwright", "install", "chromium", "firefox"],
-                env=env
+                **kwargs
             )
             _active_process.wait()
             ret = _active_process.returncode

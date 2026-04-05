@@ -172,6 +172,10 @@ class DashboardView(QWidget):
 
     def _stop_system(self, auto_stopped: bool = False):
         self._reset_timer()
+        
+        if self.notifier:
+            self.notifier.cancel()
+        
         self.notifier = None
 
         if self.check_worker and self.check_worker.isRunning():
@@ -188,6 +192,11 @@ class DashboardView(QWidget):
         self.control_card.btn_toggle.setText(" Sistemi Başlat")
         self.control_card.btn_toggle.set_type("primary")
         self.control_card.btn_toggle.setIcon(qta.icon("fa5s.play", color="white"))
+
+        self.check_count = 0
+        self.stats_card.set_count(0)
+        self.control_card.btn_check.setEnabled(True)
+        self.control_card.btn_check.setText("Şimdi Kontrol Et")
 
         if auto_stopped:
             self.timeline_card.add_item("Sistem otomatik olarak durduruldu!", "error")
